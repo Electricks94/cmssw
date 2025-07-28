@@ -18,7 +18,10 @@
 
 using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
-GENERATE_SOA_LAYOUT(SoATemplate, SOA_COLUMN(float, x0), SOA_EIGEN_COLUMN(Eigen::Vector3d, x1), SOA_SCALAR(int, x2))
+GENERATE_SOA_LAYOUT(SoATemplate, 
+                    SOA_COLUMN(float, x0),
+                    SOA_EIGEN_COLUMN(Eigen::Vector3d, x1),
+                    SOA_SCALAR(int, x2))
 
 using SoA = SoATemplate<>;
 using SoAView = SoA::View;
@@ -127,17 +130,17 @@ TEST_CASE("Test Multi View Manager") {
       PortableCollection<SoA, Device> deviceCollection1(elements5, queue);
       PortableCollection<SoA, Device> deviceCollection2(elements6, queue);
 
-      SoA::View h_view1 = hostCollection1.view();
-      SoA::View h_view2 = hostCollection2.view();
+      SoAView h_view1 = hostCollection1.view();
+      SoAView h_view2 = hostCollection2.view();
 
       h_view1.x2() = elements5;
       h_view2.x2() = elements6;
 
-      for (SoA::View::size_type i = 0; i < h_view1.metadata().size(); ++i) {
+      for (SoAView::size_type i = 0; i < h_view1.metadata().size(); ++i) {
         h_view1[i] = {1.0f, {2.0f, 3.0f, 4.0f}};
       }
 
-      for (SoA::View::size_type i = 0; i < h_view2.metadata().size(); ++i) {
+      for (SoAView::size_type i = 0; i < h_view2.metadata().size(); ++i) {
         h_view2[i] = {5.0f, {6.0f, 7.0f, 8.0f}};
       }
 
