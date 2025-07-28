@@ -4,7 +4,6 @@
 #include <array>
 #include <concepts>
 #include <cstddef>
-#include <initializer_list>
 #include <type_traits>
 
 #include <alpaka/alpaka.hpp>
