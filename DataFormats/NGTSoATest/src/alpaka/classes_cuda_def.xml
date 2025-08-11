@@ -1,0 +1,8 @@
+<lcgdict>
+  <class name="alpaka_cuda_async::SoADeviceCollection" persistent="false"/>
+  <class name="edm::DeviceProduct<alpaka_cuda_async::SoADeviceCollection>" persistent="false"/>
+  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_cuda_async::SoADeviceCollection>>" persistent="false"/>
+  <class name="alpaka_cuda_async::DeviceCollectionManager" persistent="false"/>
+  <class name="edm::DeviceProduct<alpaka_cuda_async::DeviceCollectionManager>" persistent="false"/>
+  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_cuda_async::DeviceCollectionManager>>" persistent="false"/>
+</lcgdict>

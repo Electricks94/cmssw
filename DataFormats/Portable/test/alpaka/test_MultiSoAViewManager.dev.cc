@@ -6,7 +6,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch.hpp>
 
-#include "DataFormats/Portable/interface/alpaka/MultiSoAViewManager.h"
+#include "DataFormats/Portable/interface/MultiSoAViewManager.h"
 #include "DataFormats/Portable/interface/PortableHostCollection.h"
 #include "DataFormats/Portable/interface/PortableCollection.h"
 #include "DataFormats/SoATemplate/interface/SoACommon.h"
@@ -26,15 +26,15 @@ GENERATE_SOA_LAYOUT(SoATemplate,
 using SoA = SoATemplate<>;
 using SoAView = SoA::View;
 
-struct TestKernel {
+struct ConsumerKernel {
   template <typename TAcc, typename SoAManager>
-  ALPAKA_FN_ACC void operator()(TAcc const& acc, SoAManager manager) const {
+  ALPAKA_FN_ACC void operator()(TAcc const& acc, SoAManager manager, float* result) const {
     for (auto local_idx : cms::alpakatools::uniform_elements(acc, manager.size())) {
       auto localView = manager.getView(local_idx);
       const float scalar = static_cast<float>(localView.x2());
 
       auto slvi = manager[local_idx];
-      slvi.x0() = (static_cast<float>(local_idx) + scalar) * slvi.x1().dot(slvi.x1());
+      result[local_idx] = (static_cast<float>(local_idx) + scalar) * slvi.x1().dot(slvi.x1());
     }
   }
 };
@@ -94,33 +94,28 @@ TEST_CASE("Test Multi View Manager") {
         auto localView = manager.getView(local_idx);
         const float scalar = static_cast<float>(localView.x2());
         auto slvi = manager[local_idx];
-        slvi.x0() = scalar * slvi.x0() * slvi.x1().dot(slvi.x1());
-      }
 
-      for (SoAView::size_type i = 0; i < soav1.metadata().size(); ++i) {
-        const int result = static_cast<int>(soav1[i].x0());
-        REQUIRE(result == 145);
-      }
-
-      for (SoAView::size_type i = 0; i < soav2.metadata().size(); ++i) {
-        const int result = static_cast<int>(soav2[i].x0());
-        REQUIRE(result == 18625);
-      }
-
-      for (SoAView::size_type i = 0; i < soav3.metadata().size(); ++i) {
-        const int result = static_cast<int>(soav3[i].x0());
-        REQUIRE(result == 42705);
-      }
-
-      for (SoAView::size_type i = 0; i < soav4.metadata().size(); ++i) {
-        const int result = static_cast<int>(soav4[i].x0());
-        REQUIRE(result == 360841);
+        const int result = static_cast<int>(scalar * slvi.x0() * slvi.x1().dot(slvi.x1()));
+        if(local_idx < elements1){
+          REQUIRE(result == 145);
+        }
+        else if(local_idx < elements1 + elements2){
+          REQUIRE(result == 18625);
+        }
+        else if(local_idx < elements1 + elements2 + elements3){
+          REQUIRE(result == 42705);
+        }
+        else if(local_idx < elements1 + elements2 + elements3 + elements4){
+          REQUIRE(result == 360841);
+        }
       }
     }
 
     SECTION("Device Multi View Manager") {
       const cms::soa::size_type elements5 = 7;
       const cms::soa::size_type elements6 = 22;
+
+      const cms::soa::size_type totalSize = elements5 + elements6;
 
       Queue queue(device);
 
@@ -144,36 +139,36 @@ TEST_CASE("Test Multi View Manager") {
         h_view2[i] = {5.0f, {6.0f, 7.0f, 8.0f}};
       }
 
+
+      alpaka_common::Vec<alpaka_common::Dim1D> const extent{totalSize};
+      auto bufHost{alpaka::allocBuf<float, alpaka_common::Idx>(cms::alpakatools::host(), extent)};
+      auto bufAcc{alpaka::allocBuf<float, alpaka_common::Idx>(device, extent)};
+      float* h_result{std::data(bufHost)};
+      float* d_result{std::data(bufAcc)};
+
       alpaka::memcpy(queue, deviceCollection1.buffer(), hostCollection1.buffer());
       alpaka::memcpy(queue, deviceCollection2.buffer(), hostCollection2.buffer());
 
       alpaka::wait(queue);
 
       auto deviceManager = MultiSoAViewManager(deviceCollection1.view(), deviceCollection2.view());
-      REQUIRE(deviceManager.size() == elements5 + elements6);
+      REQUIRE(deviceManager.size() == totalSize);
 
       auto blockSize = 64;
       auto numberOfBlocks = cms::alpakatools::divide_up_by(deviceManager.size(), blockSize);
       const auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(numberOfBlocks, blockSize);
 
-      alpaka::exec<Acc1D>(queue, workDiv, TestKernel{}, deviceManager);
+      alpaka::exec<Acc1D>(queue, workDiv, ConsumerKernel{}, deviceManager, d_result);
 
       alpaka::wait(queue);
-
-      alpaka::memcpy(queue, hostCollection1.buffer(), deviceCollection1.buffer());
-      alpaka::memcpy(queue, hostCollection2.buffer(), deviceCollection2.buffer());
-
+      alpaka::memcpy(queue, bufHost, bufAcc);
       alpaka::wait(queue);
-
-      auto checkManager = MultiSoAViewManager(hostCollection1.view(), hostCollection2.view());
-      REQUIRE(deviceManager.size() == checkManager.size());
 
       const int d1 = 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0;
       const int d2 = 6.0 * 6.0 + 7.0 * 7.0 + 8.0 * 8.0;
 
-      for (std::size_t i = 0; i < checkManager.size(); ++i) {
-        auto slvi = checkManager[i];
-        const int result = static_cast<int>(slvi.x0());
+      for (std::size_t i = 0; i < totalSize; ++i) {
+        const int result = static_cast<int>(h_result[i]);
         const int check = i < elements5 ? (i + elements5) * d1 : (i + elements6) * d2;
 
         REQUIRE(result == check);
