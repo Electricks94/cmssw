@@ -1,0 +1,9 @@
+<lcgdict>
+  <class name="SoA" />
+  <class name="SoAHostCollection"/>
+  <class name="CollectionManager"/>
+  <class name="edm::Wrapper<SoAHostCollection>"/>
+  <class name="edm::Wrapper<CollectionManager>"/>
+  <class name="edm::RefProd<SoAHostCollection >"/>
+  <class name="vector<edm::RefProd<SoAHostCollection> >"/>
+</lcgdict>
