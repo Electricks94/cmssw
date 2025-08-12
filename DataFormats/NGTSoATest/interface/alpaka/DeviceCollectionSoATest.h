@@ -13,35 +13,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                               PortableCollection<SoA>,
                                               PortableDeviceCollection<SoA, Device>>;
 
-    // using SoADeviceCollection = PortableCollection<SoA>; 
     using DeviceCollectionManager = MultiCollectionManager<SoADeviceCollection, 3>;
 }
 
 namespace cms::alpakatools {
 
   template <typename TDevice>
-  struct CopyToHost<MultiCollectionManager<PortableDeviceCollection<SoA, TDevice>, 3>> {
+  struct CopyToHost< MultiCollectionManager<PortableDeviceCollection<SoA, TDevice>, 3> > {
     template <typename TQueue>
-    static auto copyAsync(TQueue& queue, MultiCollectionManager<PortableDeviceCollection<SoA, TDevice>, 3> const& deviceData) {
-      // PortableHostCollection<NGTSoA> hostData(deviceData.view().metadata().size() - 1, queue);
-      // alpaka::memcpy(queue, hostData.buffer(), deviceData.buffer());
-      printf("MultiCollectionManager: I'm copying to host.\n");
-
+    static auto copyAsync(TQueue& /*queue*/, MultiCollectionManager<PortableDeviceCollection<SoA, TDevice>, 3> const& deviceData) {
       return deviceData;
     }
   };
-
-  template <>
-  struct CopyToDevice<CollectionManager> {
-    template <typename TQueue>
-    static auto copyAsync(TQueue& queue, CollectionManager const& deviceData) {
-      // PortableHostCollection<NGTSoA> hostData(deviceData.view().metadata().size() - 1, queue);
-      // alpaka::memcpy(queue, hostData.buffer(), deviceData.buffer());
-      printf("MultiCollectionManager: I'm copying to device.\n");
-      return deviceData;
-    }
-  };
-
 
 }  // namespace cms::alpakatools
 

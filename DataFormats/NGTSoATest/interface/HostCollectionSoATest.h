@@ -7,6 +7,6 @@
 #include "DataFormats/Portable/interface/MultiSoAViewManager.h"
 
 using SoAHostCollection = PortableHostCollection<SoA>;
-using CollectionManager = MultiCollectionManager<SoAHostCollection, 3>;
+// using CollectionManager = MultiCollectionManager<SoAHostCollection, 3>;
 
 #endif // NGTSoATest_interface_HostCollectionTest_h
