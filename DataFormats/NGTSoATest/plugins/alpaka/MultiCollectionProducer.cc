@@ -27,15 +27,19 @@ public:
       inputToken3_(consumes(config.getParameter<edm::InputTag>("soaInput3"))),
       outputToken_(produces()) {}
 
+  static void fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+    edm::ParameterSetDescription desc;
+    desc.add<edm::InputTag>("soaInput1");
+    desc.add<edm::InputTag>("soaInput2");
+    desc.add<edm::InputTag>("soaInput3");
+    descriptions.addWithDefaultLabel(desc);
+  }
+
   void produce(edm::StreamID sid, device::Event& event, device::EventSetup const& setup) const override{
 
     auto const& soaInputHandle1 = event.get(inputToken1_);
     auto const& soaInputHandle2 = event.get(inputToken2_);
     auto const& soaInputHandle3 = event.get(inputToken3_);
-
-    // const auto& view = soaInputHandle1.view();
-    // auto elems = view.metadata().size();
-    // std::cout << "test: " << elems << std::endl;
 
     auto manager = DeviceCollectionManager(edm::RefProd<SoADeviceCollection>(&soaInputHandle1),
                                            edm::RefProd<SoADeviceCollection>(&soaInputHandle2),
@@ -43,7 +47,6 @@ public:
 
     // Move the SoA Collection manager into the Event.
     event.emplace(outputToken_, std::move(manager));
-    // event.put(std::move(manager), "MultiCollectionManager");
 
     std::cout << "Producer 2 finished: I produced a MultiCollectionManager!" << std::endl;
 

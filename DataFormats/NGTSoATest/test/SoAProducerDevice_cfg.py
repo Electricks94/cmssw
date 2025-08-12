@@ -15,7 +15,7 @@ process.maxEvents = cms.untracked.PSet(input = cms.untracked.int32(1))
 process.source = cms.Source("EmptySource")
 
 # Add the producer
-process.soaproducer = cms.EDProducer("SoAProducer", soaParameter = cms.int32(42))
+process.soaproducer = cms.EDProducer("SoAProducer@alpaka", soaParameter = cms.int32(42))
 process.multiCollectionproducer = cms.EDProducer("MultiCollectionProducer@alpaka",
     soaInput1 = cms.InputTag("soaproducer", "SoAProduct1"),
     soaInput2 = cms.InputTag("soaproducer", "SoAProduct2"),
