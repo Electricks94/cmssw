@@ -30,11 +30,30 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       collectionManagerInputToken_(consumes(config.getParameter<edm::InputTag>("collectionManagerInput"))) {}
 
     void produce(edm::StreamID sid, device::Event& event, device::EventSetup const& setup) const override {
-      
-      DeviceCollectionManager manager = event.get(collectionManagerInputToken_);
-      TestKernel::run(event.queue(), manager);
+      auto queue = event.queue();
+      auto device = event.device();
 
-      std::cout << "DeviceConsumer worked: " << std::endl;
+      DeviceCollectionManager manager = event.get(collectionManagerInputToken_);
+      auto view = manager.makeFlatView();
+      const auto totalNumberElements = view.size();
+
+      alpaka_common::Vec<alpaka_common::Dim1D> const extent{totalNumberElements};
+      auto bufHost{alpaka::allocBuf<float, alpaka_common::Idx>(cms::alpakatools::host(), extent)};
+      auto bufAcc{alpaka::allocBuf<float, alpaka_common::Idx>(device, extent)};
+      float* h_result{std::data(bufHost)};
+      float* d_result{std::data(bufAcc)};
+
+      TestKernel::run(queue, manager, d_result);
+
+      alpaka::wait(queue);
+      alpaka::memcpy(queue, bufHost, bufAcc);
+      alpaka::wait(queue);
+
+      for (std::size_t i = 0; i < totalNumberElements; ++i) {
+        const int result = static_cast<int>(h_result[i]);
+        std::cout << result << std::endl;
+      }
+      
     }
 
     static void fillDescriptions(edm::ConfigurationDescriptions& descriptions) {

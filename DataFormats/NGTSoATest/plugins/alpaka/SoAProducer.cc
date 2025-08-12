@@ -71,9 +71,6 @@ public:
     event.emplace(soa1_, std::move(soaDev1));
     event.emplace(soa2_, std::move(soaDev2));
     event.emplace(soa3_, std::move(soaDev3));
-
-    std::cout << "Producer 1 finished: I produced three portable collections !" << std::endl;
-
   }
 
 private:

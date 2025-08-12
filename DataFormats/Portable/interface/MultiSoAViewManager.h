@@ -65,7 +65,6 @@ private:
   std::array<ConstView, N> views_;
   std::array<std::size_t, N> offsets_;
   std::size_t totalSize_{0};
-  // std::size_t addedViews_{0};
 };
 
 #endif  // DataFormats_Portable_interface_alpaka_MultiSoAViewManager_h

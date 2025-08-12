@@ -47,9 +47,6 @@ public:
 
     // Move the SoA Collection manager into the Event.
     event.emplace(outputToken_, std::move(manager));
-
-    std::cout << "Producer 2 finished: I produced a MultiCollectionManager!" << std::endl;
-
   }
 
 private:

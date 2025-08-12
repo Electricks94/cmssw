@@ -1,6 +1,8 @@
 #ifndef NGTSoATest_plugins_alpaka_TestKernel_h
 #define NGTSoATest_plugins_alpaka_TestKernel_h
 
+#include <alpaka/alpaka.hpp>
+
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "DataFormats/NGTSoATest/interface/alpaka/DeviceCollectionSoATest.h"
 
@@ -8,7 +10,7 @@
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   struct TestKernel {
-    static void run(Queue& queue, DeviceCollectionManager& manager);
+    static void run(Queue& queue, DeviceCollectionManager& manager, float* result);
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
