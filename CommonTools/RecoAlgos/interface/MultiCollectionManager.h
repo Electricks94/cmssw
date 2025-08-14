@@ -2,12 +2,17 @@
 #ifndef CommonTools_RecoAlgos_MultiCollectionManager_h
 #define CommonTools_RecoAlgos_MultiCollectionManager_h
 
+#include <cassert>
 #include <span>
 #include <utility>
 #include <vector>
 
 #include "DataFormats/Common/interface/RefProd.h"
 #include "DataFormats/Portable/interface/MultiSoAViewManager.h"
+
+#include "HeterogeneousCore/AlpakaInterface/interface/CopyToDevice.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/CopyToHost.h"
+
 #include "MultiVectorManager.h"
 
 template <typename... Ts>
@@ -40,9 +45,10 @@ public:
 
   // ---------------- producer‑side constructor ----------------------------------
 
-  // TODO: check that sizeof...(Args) == N
   template <typename... Args>
-  explicit MultiCollectionManager(Args&&... refs) : refProds_{{std::forward<Args>(refs)...}} {}
+  explicit MultiCollectionManager(Args&&... refs) : refProds_{{std::forward<Args>(refs)...}} {
+    static_assert(sizeof...(Args) == 0 || sizeof...(Args) == N, "Number of arguments must be equal to N");  
+  }
 
   // ---------------- consumer‑side helpers ------------------------------
   /**
@@ -82,5 +88,20 @@ public:
 private:
   std::array<edm::RefProd<Collection>, N> refProds_;
 };
+
+namespace cms::alpakatools {
+
+  // Dummy function to be able to add the MultiCollectionManager to a device::EDPutToken
+  // This function should never be called.
+  template <typename Collection, std::size_t N>
+  struct CopyToHost< MultiCollectionManager<Collection, N> > {
+    template <typename TQueue>
+    static auto copyAsync(TQueue& /*queue*/, MultiCollectionManager<Collection, N> const& deviceData) {
+      assert(false && "The CopyToHost of the MultiCollectionManager must not be called!");
+      return deviceData;
+    }
+  };
+
+}  // namespace cms::alpakatools
 
 #endif  // CommonTools_RecoAlgos_MultiCollectionManager_h

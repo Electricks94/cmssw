@@ -33,7 +33,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       auto queue = event.queue();
       auto device = event.device();
 
-      DeviceCollectionManager manager = event.get(collectionManagerInputToken_);
+      auto manager = event.get(collectionManagerInputToken_);
       auto view = manager.makeFlatView();
       const auto totalNumberElements = view.size();
 
