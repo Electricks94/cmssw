@@ -1,0 +1,6 @@
+#ifndef TrackingRecHitExample_interface_SoALayoutTest_h
+#define TrackingRecHitExample_interface_SoALayoutTest_h
+
+#include "DataFormats/TrackingRecHitSoA/interface/TrackingRecHitsSoA.h"
+
+#endif // TrackingRecHitExample_interface_SoALayoutTest_h
