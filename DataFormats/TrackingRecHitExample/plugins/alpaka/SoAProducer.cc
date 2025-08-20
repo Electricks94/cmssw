@@ -36,8 +36,8 @@ public:
     const cms::soa::size_type elements1 = 1;
     const cms::soa::size_type elements2 = 2;
 
-    TrackingRecHitHost soaHost1(cms::alpakatools::host(), elements1, elements1);
-    TrackingRecHitHost soaHost2(cms::alpakatools::host(), elements2, elements2);
+    TrackingRecHitHost soaHost1(cms::alpakatools::host(), elements1, elements1*elements1);
+    TrackingRecHitHost soaHost2(cms::alpakatools::host(), elements2, elements2*elements2);
 
     auto& view1 = soaHost1.view<TrackingRecHitSoA>();
     auto& view2 = soaHost2.view<TrackingRecHitSoA>();
@@ -53,8 +53,8 @@ public:
       view2[i].xLocal() = 2.0f;
     }
 
-    TrackingRecHitsSoACollection soaDev1(queue, elements1, elements1);
-    TrackingRecHitsSoACollection soaDev2(queue, elements2, elements2);
+    TrackingRecHitsSoACollection soaDev1(queue, elements1, elements1*elements1);
+    TrackingRecHitsSoACollection soaDev2(queue, elements2, elements2*elements2);
 
     alpaka::memcpy(queue, soaDev1.buffer(), soaHost1.buffer());
     alpaka::memcpy(queue, soaDev2.buffer(), soaHost2.buffer());
