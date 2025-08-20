@@ -1,6 +1,8 @@
 #ifndef TrackingRecHitExample_interface_HostCollectionTest_h
 #define TrackingRecHitExample_interface_HostCollectionTest_h
 
+#include "CommonTools/RecoAlgos/interface/MultiCollectionManager.h"
+
 #include "DataFormats/TrackingRecHitSoA/interface/TrackingRecHitsSoA.h"
 #include "DataFormats/TrackingRecHitSoA/interface/TrackingRecHitsHost.h"
 #include "DataFormats/TrackingRecHitSoA/interface/TrackingRecHitsDevice.h"
@@ -10,25 +12,21 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/CopyToHost.h"
 
 template <typename Collection, std::size_t N>
-class MultiCollectionManager {
+class TrackingCollectionManager {
 public:
 
   template <typename... Args>
-  explicit MultiCollectionManager(Args&&... refs) : refProds_{{std::forward<Args>(refs)...}} {
+  explicit TrackingCollectionManager(Args&&... refs) : collectionManager_{refs...} {
     static_assert(sizeof...(Args) == 0 || sizeof...(Args) == N, "Number of arguments must be equal to N");  
   }
 
-  template <typename T>
-  auto makeFlatView() const {
-    return std::apply([](const auto&... vs) { 
-      return MultiSoAViewManager(vs->template view<T>()...); 
-    }, refProds_);
+  template<typename T>
+  [[nodiscard]] auto makeFlatView() const {
+    return collectionManager_.template makeFlatView<T>();
   }
 
-  const std::array<edm::RefProd< Collection >, N>& refProds() const { return refProds_; }
-  
-private:
-  std::array<edm::RefProd<Collection>, N> refProds_;
+private: 
+    MultiCollectionManager<Collection, N> collectionManager_;
 };
 
 namespace cms::alpakatools {
@@ -36,9 +34,9 @@ namespace cms::alpakatools {
   // Dummy function to be able to add the MultiCollectionManager to a device::EDPutToken
   // This function should never be called.
   template <typename Collection, std::size_t N>
-  struct CopyToHost< MultiCollectionManager<Collection, N> > {
+  struct CopyToHost< TrackingCollectionManager<Collection, N> > {
     template <typename TQueue>
-    static auto copyAsync(TQueue& /*queue*/, MultiCollectionManager<Collection, N> const& deviceData) {
+    static auto copyAsync(TQueue& /*queue*/, TrackingCollectionManager<Collection, N> const& deviceData) {
       assert(false && "The CopyToHost of the MultiCollectionManager must not be called!");
       return deviceData;
     }
