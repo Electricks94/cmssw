@@ -37,7 +37,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       auto device = event.device();
 
       auto manager = event.get(collectionManagerInputToken_);
-      auto view = manager.makeFlatView<TrackingRecHitSoA>();
+
+      std::cout << "nHits: " << manager.nHits() << std::endl;
+      std::cout << "nModules: " << manager.nModules() << std::endl;
+      std::cout << "offsetBPIX2: " << manager.offsetBPIX2() << std::endl;
+
+      auto view = manager.view<TrackingRecHitSoA>();
       const auto totalNumberElements = view.size();
 
       alpaka_common::Vec<alpaka_common::Dim1D> const extent{totalNumberElements};

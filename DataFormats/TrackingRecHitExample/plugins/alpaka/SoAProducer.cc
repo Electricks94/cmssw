@@ -42,6 +42,9 @@ public:
     auto& view1 = soaHost1.view<TrackingRecHitSoA>();
     auto& view2 = soaHost2.view<TrackingRecHitSoA>();
 
+    view1.offsetBPIX2() = 100;
+    view2.offsetBPIX2() = 200;
+
     for (TrackingRecHitView::size_type i = 0; i < view1.metadata().size(); ++i) {
       view1[i].xLocal() = 1.0f;
     }
@@ -55,6 +58,9 @@ public:
 
     alpaka::memcpy(queue, soaDev1.buffer(), soaHost1.buffer());
     alpaka::memcpy(queue, soaDev2.buffer(), soaHost2.buffer());
+
+    soaDev1.updateFromDevice(queue);
+    soaDev2.updateFromDevice(queue);
 
     alpaka::wait(queue);
 

@@ -19,7 +19,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   };
 
   void TestKernel::run(Queue& queue, DeviceCollectionManagerTracking& manager, float* result){
-    auto view = manager.makeFlatView<TrackingRecHitSoA>();  // by value
+    auto view = manager.view<TrackingRecHitSoA>();  // by value
     uint32_t items = 64;
 
     // The total number of threads is determined by the size of the manager,
