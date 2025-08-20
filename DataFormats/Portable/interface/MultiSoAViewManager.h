@@ -12,7 +12,23 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 
 
-
+/**
+ * @brief Aggregates multiple views into a single combined view, similar to `MultiVectorManager`.
+ *
+ * `MultiSoAViewManager` stores multiple views as references within an `std::array`, 
+ * accompanied by an offset array to enable access via a global index. 
+ * Thanks to the use of `std::array`, instances of `MultiSoAViewManager` can be passed 
+ * directly by value to kernels without requiring device memory copies.
+ *
+ * This manager does not own or copy the underlying data; instead, it maintains lightweight 
+ * references to existing views, minimizing memory overhead and construction cost.
+ * However, since the underlying SoA memories are not contiguous, cacheline inefficiencies 
+ * may arise. Therefore, `MultiSoAViewManager` is best suited for use with large SoA views 
+ * where such overhead is amortized.
+ *
+ * To ensure clarity and performance, SoA views must be provided explicitly through the 
+ * constructor—no dynamic addition of views is supported.
+ */
 template <typename... ConstViews>
 requires(sizeof...(ConstViews) > 0 && (std::same_as<ConstViews, ConstViews> && ...))
 class MultiSoAViewManager {
