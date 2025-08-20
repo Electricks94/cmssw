@@ -25,9 +25,10 @@ public:
     return collectionManager_.template makeFlatView<T>();
   }
 
-  uint32_t nHits() const { return this->template view<reco::TrackingRecHitSoA>().size(); }
-  // TODO: Do we need to encounter for a hidden last element here?
-  uint32_t nModules() const { return this->template view<reco::HitModuleSoA>().size(); }
+  uint32_t nHits() const { return static_cast<uint32_t>( this->template view<reco::TrackingRecHitSoA>().size() ); }
+  // each TrackingRecHitsSoACollection contains an extra module which we don't count here.
+  // See TrackingRecHitsDevice.h for more explanation
+  uint32_t nModules() const { return static_cast<uint32_t>( this->template view<reco::HitModuleSoA>().size() - N ); }
 
   int32_t offsetBPIX2() const {
     // Due to the detector layout only the offset from the first SoA (pixelRecHit) is usefull
