@@ -21,8 +21,19 @@ public:
   }
 
   template<typename T>
-  [[nodiscard]] auto makeFlatView() const {
+  [[nodiscard]] auto view() const {
     return collectionManager_.template makeFlatView<T>();
+  }
+
+  uint32_t nHits() const { return this->template view<reco::TrackingRecHitSoA>().size(); }
+  // TODO: Do we need to encounter for a hidden last element here?
+  uint32_t nModules() const { return this->template view<reco::HitModuleSoA>().size(); }
+
+  int32_t offsetBPIX2() const {
+    // Due to the detector layout only the offset from the first SoA (pixelRecHit) is usefull
+    auto const& rp = collectionManager_.refProds()[0];
+    auto const& trackingRecHitCollection = *rp;
+    return trackingRecHitCollection.offsetBPIX2(); 
   }
 
 private: 
