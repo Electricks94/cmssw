@@ -13,7 +13,27 @@
 #include <tuple>
 #include <type_traits>
 
+// !! From https://github.com/NVIDIA/NVTX/blob/release-v3/c/README.md  --> include order matters !!
+// Minor versions of NVTX releases may introduce new features into the nvtx3::v1 namespace. 
+// To use these features, ensure that within each compilation unit, 
+// the first inclusion of nvtx3.hpp is based at least on this release. 
+// If an older version is included first, the new features will not be available.
+
+
 #include <alpaka/alpaka.hpp>
+
+#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+  # if __has_include("nvtx3.hpp")
+    #include "nvtx3.hpp"
+    #include "nvToolsExt.h"
+    #include "nvToolsExtMem.h"
+
+    // Forces CUDA runtime initialization.
+    // cudaFree(0);
+
+    #define NVTX_EXTMEM_AVAILABLE 1
+  # endif
+#endif
 
 #include "HeterogeneousCore/AlpakaInterface/interface/devices.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/AllocatorConfig.h"
@@ -200,6 +220,13 @@ namespace cms::alpakatools {
       block.queue = std::move(queue);
       block.requested = bytes;
       std::tie(block.bin, block.bytes) = findBin(bytes);
+
+#ifdef NVTX_EXTMEM_AVAILABLE
+      
+  // Create the NVTX domain
+  auto mynvtxDomain = nvtxDomainCreateA("my-domain");
+#endif
+      
 
       // try to re-use a cached block, or allocate a new buffer
       if (tryReuseCachedBlock(block)) {

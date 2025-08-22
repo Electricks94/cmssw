@@ -99,3 +99,11 @@
   <use name="HeterogeneousCore/AlpakaInterface"/>
   <flags ALPAKA_BACKENDS="1"/>
 </bin>
+
+<bin name="TestCachingAllocator" file="alpaka/testCachingAllocator.dev.cc">
+  <use name="alpaka"/>
+  <use name="catch2"/>
+  <use name="HeterogeneousCore/AlpakaInterface"/>
+  <flags CXXFLAGS="-I/data/maholzer/NVTX/c/include/nvtx3/"/>
+  <flags ALPAKA_BACKENDS="1"/>
+</bin>
