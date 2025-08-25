@@ -86,19 +86,4 @@ private:
   std::array<edm::RefProd<Collection>, N> refProds_;
 };
 
-namespace cms::alpakatools {
-
-  // Dummy function to be able to add the MultiCollectionManager to a device::EDPutToken
-  // This function should never be called.
-  template <typename Collection, std::size_t N>
-  struct CopyToHost< MultiCollectionManager<Collection, N> > {
-    template <typename TQueue>
-    static auto copyAsync(TQueue& /*queue*/, MultiCollectionManager<Collection, N> const& deviceData) {
-      assert(false && "The CopyToHost of the MultiCollectionManager must not be called!");
-      return deviceData;
-    }
-  };
-
-}  // namespace cms::alpakatools
-
 #endif  // CommonTools_RecoAlgos_MultiCollectionManager_h

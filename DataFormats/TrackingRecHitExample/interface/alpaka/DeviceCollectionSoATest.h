@@ -8,7 +8,6 @@ using namespace reco;
 using namespace ALPAKA_ACCELERATOR_NAMESPACE::reco;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
-
     using DeviceCollectionManagerTracking = TrackingCollectionManager<TrackingRecHitsSoACollection, 2>;
 }
 

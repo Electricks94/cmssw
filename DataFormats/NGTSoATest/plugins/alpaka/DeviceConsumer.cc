@@ -1,6 +1,7 @@
 #include <alpaka/alpaka.hpp>
 
 #include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
+#include "FWCore/Utilities/interface/EDGetToken.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
 #include "FWCore/Utilities/interface/InputTag.h"
@@ -12,7 +13,6 @@
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/global/EDProducer.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/Event.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/EventSetup.h"
-#include "HeterogeneousCore/AlpakaCore/interface/alpaka/EDGetToken.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/MakerMacros.h"
@@ -63,7 +63,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
 
   private:
-    const device::EDGetToken<DeviceCollectionManager> collectionManagerInputToken_;
+    const edm::EDGetTokenT<DeviceCollectionManager> collectionManagerInputToken_;
   };
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
 
