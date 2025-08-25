@@ -4,6 +4,4 @@
   <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::SoADeviceCollection>>" persistent="false"/>
   <class name="alpaka_rocm_async::DeviceCollectionManager" persistent="false"/>
   <class name="edm::Wrapper<alpaka_rocm_async::DeviceCollectionManager>" persistent="false"/>
-  <class name="edm::DeviceProduct<alpaka_rocm_async::DeviceCollectionManager>" persistent="false"/>
-  <class name="edm::Wrapper<edm::DeviceProduct<alpaka_rocm_async::DeviceCollectionManager>>" persistent="false"/>
 </lcgdict>

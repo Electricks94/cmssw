@@ -64,7 +64,7 @@ public:
       MultiVectorManager<typename Collection::value_type> mv;
       for (auto const& rp : refProds_) {
         auto const& coll = *rp;
-        mv.addVector(std::span<const typename Collection::value_type>(coll.data(), coll.size()));
+        mv.addVector(coll);
       }
       return mv;
     } else {
