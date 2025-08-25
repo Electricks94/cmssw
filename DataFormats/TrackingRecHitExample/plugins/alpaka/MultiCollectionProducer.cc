@@ -3,11 +3,11 @@
 #include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
 #include "FWCore/Utilities/interface/InputTag.h"
 #include "FWCore/Utilities/interface/StreamID.h"
+#include "FWCore/Utilities/interface/EDPutToken.h"
 
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/global/EDProducer.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/Event.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/EventSetup.h"
-#include "HeterogeneousCore/AlpakaCore/interface/alpaka/EDPutToken.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/EDGetToken.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/MakerMacros.h"
 
@@ -54,7 +54,7 @@ private:
   const device::EDGetToken<TrackingRecHitsSoACollection> inputToken1_;
   const device::EDGetToken<TrackingRecHitsSoACollection> inputToken2_;
 
-  const device::EDPutToken<DeviceCollectionManagerTracking> outputToken_;
+  const edm::EDPutTokenT<DeviceCollectionManagerTracking> outputToken_;
 };
 
 }

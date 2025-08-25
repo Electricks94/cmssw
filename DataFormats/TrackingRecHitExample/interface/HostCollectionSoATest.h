@@ -41,19 +41,4 @@ private:
     MultiCollectionManager<Collection, N> collectionManager_;
 };
 
-namespace cms::alpakatools {
-
-  // Dummy function to be able to add the MultiCollectionManager to a device::EDPutToken
-  // This function should never be called.
-  template <typename Collection, std::size_t N>
-  struct CopyToHost< TrackingCollectionManager<Collection, N> > {
-    template <typename TQueue>
-    static auto copyAsync(TQueue& /*queue*/, TrackingCollectionManager<Collection, N> const& deviceData) {
-      assert(false && "The CopyToHost of the MultiCollectionManager must not be called!");
-      return deviceData;
-    }
-  };
-
-}  // namespace cms::alpakatools
-
 #endif // TrackingRecHitExample_interface_HostCollectionTest_h

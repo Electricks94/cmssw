@@ -4,17 +4,18 @@
 #include "FWCore/Utilities/interface/InputTag.h"
 #include "FWCore/Utilities/interface/StreamID.h"
 
+#include "FWCore/Utilities/interface/EDPutToken.h"
+
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/global/EDProducer.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/Event.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/EventSetup.h"
-#include "HeterogeneousCore/AlpakaCore/interface/alpaka/EDPutToken.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/EDGetToken.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/MakerMacros.h"
 
 #include "DataFormats/NGTSoATest/interface/HostCollectionSoATest.h"
 #include "DataFormats/NGTSoATest/interface/alpaka/DeviceCollectionSoATest.h"
 
-#include <iostream>
+// #include <iostream>
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -54,7 +55,7 @@ private:
   const device::EDGetToken<SoADeviceCollection> inputToken2_;
   const device::EDGetToken<SoADeviceCollection> inputToken3_;
 
-  const device::EDPutToken<DeviceCollectionManager> outputToken_;
+  const edm::EDPutTokenT<DeviceCollectionManager> outputToken_;
 };
 
 }
