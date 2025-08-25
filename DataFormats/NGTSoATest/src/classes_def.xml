@@ -1,7 +1,7 @@
 <lcgdict>
-  <class name="SoA" />
-  <class name="SoAHostCollection"/>
-  <class name="edm::Wrapper<SoAHostCollection>"/>
-  <class name="edm::RefProd<SoAHostCollection >"/>
-  <class name="vector<edm::RefProd<SoAHostCollection> >"/>
+  <class name="SoA" persistent="false"/>
+  <class name="SoAHostCollection" persistent="false"/>
+  <class name="edm::Wrapper<SoAHostCollection>" persistent="false"/>
+  <class name="edm::RefProd<SoAHostCollection >" persistent="false"/>
+  <class name="vector<edm::RefProd<SoAHostCollection> >" persistent="false"/>
 </lcgdict>
