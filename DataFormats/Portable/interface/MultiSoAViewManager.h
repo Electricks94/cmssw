@@ -4,6 +4,7 @@
 #include <array>
 #include <concepts>
 #include <cstddef>
+#include <stdexcept>
 #include <type_traits>
 
 #include <alpaka/alpaka.hpp>
@@ -29,17 +30,31 @@
  * To ensure clarity and performance, SoA views must be provided explicitly through the 
  * constructor—no dynamic addition of views is supported.
  */
-template <typename... ConstViews>
-requires(sizeof...(ConstViews) > 0 && (std::same_as<ConstViews, ConstViews> && ...))
+
+template <typename ConstView>
 class MultiSoAViewManager {
 public:
-  using ConstView = typename std::common_type_t<ConstViews...>;
   using ConstElement = typename ConstView::const_element;
-  static constexpr std::size_t N = sizeof...(ConstViews);
+  static constexpr std::size_t maxSize = 10;
 
+  MultiSoAViewManager() = default;
+
+  
+  template <typename... ConstViews>
   MultiSoAViewManager(const ConstViews&... views) : views_{{views...}}, offsets_{} {
-    std::size_t i = 0;
-    ((offsets_[i] = totalSize_, totalSize_ += views.metadata().size(), ++i), ...);
+    static_assert(sizeof...(ConstViews) < maxSize, "Number of arguments must not exceed the maximum size");
+    ((offsets_[n_] = totalSize_, totalSize_ += views.metadata().size(), ++n_), ...);
+  }
+  
+
+  void addView(ConstView const& constView) {
+    assert(n_ < maxSize && "ViewManager can only handle 10 views");
+
+    views_[n_] = constView;
+    offsets_[n_] = totalSize_;
+    totalSize_ += constView.metadata().size();
+    ++n_;
+
   }
 
   const ALPAKA_FN_HOST_ACC ConstElement operator[](const std::size_t globalIndex) const {
@@ -61,7 +76,7 @@ public:
     std::size_t result = 0;
 
     CMS_UNROLL_LOOP
-    for (std::size_t i = 0; i < N; ++i) {
+    for (std::size_t i = 0; i < n_; ++i) {
       result = (globalIndex >= offsets_[i]) ? i : result;
     }
 
@@ -78,9 +93,11 @@ public:
   ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE std::size_t size() const { return totalSize_; }
 
 private:
-  std::array<ConstView, N> views_;
-  std::array<std::size_t, N> offsets_;
+  std::array<ConstView, maxSize> views_;
+  std::array<std::size_t, maxSize> offsets_;
   std::size_t totalSize_{0};
+
+  std::size_t n_{0};
 };
 
 #endif  // DataFormats_Portable_interface_alpaka_MultiSoAViewManager_h

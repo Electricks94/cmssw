@@ -18,7 +18,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
   };
 
-  void TestKernel::run(Queue& queue, DeviceCollectionManager& manager, float* result){
+  void TestKernel::run(Queue& queue, MultiCollectionManager<SoADeviceCollection>& manager, float* result){
     auto view = manager.makeFlatView();  // by value
     uint32_t items = 64;
 

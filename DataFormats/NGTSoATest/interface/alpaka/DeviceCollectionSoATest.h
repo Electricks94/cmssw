@@ -13,8 +13,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     using SoADeviceCollection = std::conditional_t<std::is_same_v<Device, alpaka::DevCpu>,
                                                    PortableCollection<SoA>,
                                                    PortableDeviceCollection<SoA, Device>>;
-    using DeviceCollectionManager = MultiCollectionManager<SoADeviceCollection, 3>;
-
 }
 
 ASSERT_DEVICE_MATCHES_HOST_COLLECTION(SoADeviceCollection, SoAHostCollection)

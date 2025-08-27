@@ -42,9 +42,13 @@ public:
     auto const& soaInputHandle2 = event.get(inputToken2_);
     auto const& soaInputHandle3 = event.get(inputToken3_);
 
-    auto manager = DeviceCollectionManager(edm::RefProd<SoADeviceCollection>(&soaInputHandle1),
-                                           edm::RefProd<SoADeviceCollection>(&soaInputHandle2),
-                                           edm::RefProd<SoADeviceCollection>(&soaInputHandle3));
+    auto manager = MultiCollectionManager<SoADeviceCollection>();
+
+    manager.addCollection(edm::RefProd<SoADeviceCollection>(&soaInputHandle1));
+    manager.addCollection(edm::RefProd<SoADeviceCollection>(&soaInputHandle2));
+    manager.addCollection(edm::RefProd<SoADeviceCollection>(&soaInputHandle3));
+
+    //auto view = manager.makeFlatView();
 
     // Move the SoA Collection manager into the Event.
     event.emplace(outputToken_, std::move(manager));
@@ -55,7 +59,7 @@ private:
   const device::EDGetToken<SoADeviceCollection> inputToken2_;
   const device::EDGetToken<SoADeviceCollection> inputToken3_;
 
-  const edm::EDPutTokenT<DeviceCollectionManager> outputToken_;
+  const edm::EDPutTokenT<MultiCollectionManager<SoADeviceCollection>> outputToken_;
 };
 
 }

@@ -8,7 +8,7 @@
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   struct TestKernel {
-    static void run(Queue& queue, DeviceCollectionManager& manager, float* result);
+    static void run(Queue& queue, MultiCollectionManager<SoADeviceCollection>& manager, float* result);
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE

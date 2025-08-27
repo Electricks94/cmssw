@@ -40,16 +40,16 @@ inline constexpr auto is_vector_v = is_vector<T>::value;
  * concatenated elements. SoAs that are allocated on accelerators can be used inside
  * a kernel direcly with the `MultiSoAViewManager`.
  */
-template <typename Collection, std::size_t N>
+template <typename Collection>
 class MultiCollectionManager {
 public:
 
-  // ---------------- producer‑side constructor ----------------------------------
+  MultiCollectionManager() = default;
 
-  template <typename... Args>
-  explicit MultiCollectionManager(Args&&... refs) : refProds_{{std::forward<Args>(refs)...}} {
-    static_assert(sizeof...(Args) == 0 || sizeof...(Args) == N, "Number of arguments must be equal to N");  
-  }
+  explicit MultiCollectionManager(std::initializer_list<edm::RefProd<Collection>> refs) : refProds_{refs} {}
+
+  // ---------------- producer‑side API ----------------------------------
+  void addCollection(edm::RefProd<Collection> const& ref) { refProds_.push_back(ref); }
 
   // ---------------- consumer‑side helpers ------------------------------
   /**
@@ -68,22 +68,44 @@ public:
       }
       return mv;
     } else {
-      return std::apply([](auto const&... vs) {
+      
+      for(const auto& rp : refProds_){
         if constexpr (std::is_void_v<T>) {
           // Extract the view from a PortableCollection
-          return MultiSoAViewManager(vs->const_view()...);
+          MultiSoAViewManager<typename Collection::ConstView> soaViewManager;
+         soaViewManager.addView(rp->const_view());
         } else {
           // Extract the view from a PortableMultiCollection
-          return MultiSoAViewManager(vs->template const_view<T>()...); 
+          static constexpr std::size_t index = Collection<T>;
+          MultiSoAViewManager<typename Collection::ConstView<index>> soaViewManager;
+          soaViewManager.addView(rp->template const_view<T>());
+        }
+      }
+      return soaViewManager;
+
+      /*
+      return std::apply([](auto const&... vs) {
+
+        std::vector<typename Collection::ConstView> constViews;
+
+        if constexpr (std::is_void_v<T>) {
+          // Extract the view from a PortableCollection
+          return MultiSoAViewManager<typename Collection::ConstView, 3>(vs->const_view()...);
+        } else {
+          // Extract the view from a PortableMultiCollection
+          return MultiSoAViewManager<typename Collection::ConstView, 3>(vs->template const_view<T>()...); 
         }
       }, refProds_);
+      */
+
+
     }
   }
 
-  const std::array<edm::RefProd< Collection >, N>& refProds() const { return refProds_; }
+  const std::vector<edm::RefProd<Collection>>& refProds() const { return refProds_; }
   
 private:
-  std::array<edm::RefProd<Collection>, N> refProds_;
+  std::vector<edm::RefProd<Collection>> refProds_;
 };
 
 #endif  // CommonTools_RecoAlgos_MultiCollectionManager_h

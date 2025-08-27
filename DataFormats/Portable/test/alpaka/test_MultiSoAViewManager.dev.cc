@@ -2,6 +2,7 @@
 #include <Eigen/Dense>
 
 #include <alpaka/alpaka.hpp>
+#include <vector>
 
 #define CATCH_CONFIG_MAIN
 #include <catch.hpp>
@@ -25,6 +26,7 @@ GENERATE_SOA_LAYOUT(SoATemplate,
 
 using SoA = SoATemplate<>;
 using SoAView = SoA::View;
+using SoAConstView = SoA::ConstView;
 
 struct ConsumerKernel {
   template <typename TAcc, typename SoAManager>
@@ -86,7 +88,7 @@ TEST_CASE("Test Multi View Manager") {
     }
 
     SECTION("Host Multi View Manager") {
-      auto manager = MultiSoAViewManager(soav1, soav2, soav3, soav4);
+      auto manager = MultiSoAViewManager<SoAConstView>(soav1, soav2, soav3, soav4);
       REQUIRE(manager.size() == elements1 + elements2 + elements3 + elements4);
 
       // Loop over all elements of the four views
@@ -109,8 +111,9 @@ TEST_CASE("Test Multi View Manager") {
           REQUIRE(result == 360841);
         }
       }
+      
     }
-
+    
     SECTION("Device Multi View Manager") {
       const cms::soa::size_type elements5 = 7;
       const cms::soa::size_type elements6 = 22;
@@ -151,7 +154,7 @@ TEST_CASE("Test Multi View Manager") {
 
       alpaka::wait(queue);
 
-      auto deviceManager = MultiSoAViewManager(deviceCollection1.view(), deviceCollection2.view());
+      auto deviceManager = MultiSoAViewManager<SoAConstView>(deviceCollection1.view(), deviceCollection2.view());
       REQUIRE(deviceManager.size() == totalSize);
 
       auto blockSize = 64;
@@ -170,9 +173,10 @@ TEST_CASE("Test Multi View Manager") {
       for (std::size_t i = 0; i < totalSize; ++i) {
         const int result = static_cast<int>(h_result[i]);
         const int check = i < elements5 ? (i + elements5) * d1 : (i + elements6) * d2;
-
         REQUIRE(result == check);
       }
     }
+
+
   }
 }

@@ -63,7 +63,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
 
   private:
-    const edm::EDGetTokenT<DeviceCollectionManager> collectionManagerInputToken_;
+    const edm::EDGetTokenT<MultiCollectionManager<SoADeviceCollection>> collectionManagerInputToken_;
   };
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
 

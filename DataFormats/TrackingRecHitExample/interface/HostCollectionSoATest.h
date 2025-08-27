@@ -11,14 +11,12 @@
 #include "DataFormats/Common/interface/RefProd.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/CopyToHost.h"
 
-template <typename Collection, std::size_t N>
+template <typename Collection>
 class TrackingCollectionManager {
 public:
 
   template <typename... Args>
-  explicit TrackingCollectionManager(Args&&... refs) : collectionManager_{refs...} {
-    static_assert(sizeof...(Args) == 0 || sizeof...(Args) == N, "Number of arguments must be equal to N");  
-  }
+  explicit TrackingCollectionManager(Args&&... refs) : collectionManager_{refs...} {}
 
   template<typename T>
   [[nodiscard]] auto view() const {
@@ -28,7 +26,7 @@ public:
   uint32_t nHits() const { return static_cast<uint32_t>( this->template view<reco::TrackingRecHitSoA>().size() ); }
   // each TrackingRecHitsSoACollection contains an extra module which we don't count here.
   // See TrackingRecHitsDevice.h for more explanation
-  uint32_t nModules() const { return static_cast<uint32_t>( this->template view<reco::HitModuleSoA>().size() - N ); }
+  uint32_t nModules() const { return static_cast<uint32_t>( this->template view<reco::HitModuleSoA>().size() - 2 ); }
 
   int32_t offsetBPIX2() const {
     // Due to the detector layout only the offset from the first SoA (pixelRecHit) is usefull
@@ -38,7 +36,7 @@ public:
   }
 
 private: 
-    MultiCollectionManager<Collection, N> collectionManager_;
+    MultiCollectionManager<Collection> collectionManager_;
 };
 
 #endif // TrackingRecHitExample_interface_HostCollectionTest_h
