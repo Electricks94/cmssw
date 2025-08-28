@@ -68,41 +68,23 @@ public:
       }
       return mv;
     } else {
-      
-      for(const auto& rp : refProds_){
-        if constexpr (std::is_void_v<T>) {
-          // Extract the view from a PortableCollection
-          MultiSoAViewManager<typename Collection::ConstView> soaViewManager;
-         soaViewManager.addView(rp->const_view());
-        } else {
-          // Extract the view from a PortableMultiCollection
-          static constexpr std::size_t index = Collection<T>;
-          MultiSoAViewManager<typename Collection::ConstView<index>> soaViewManager;
+      if constexpr (std::is_void_v<T>) {
+        MultiSoAViewManager<typename Collection::ConstView> soaViewManager;
+        for(const auto& rp : refProds_){
+          soaViewManager.addView(rp->const_view());
+        }
+        return soaViewManager;
+      } else {
+        MultiSoAViewManager<typename T::ConstView> soaViewManager;
+        for(const auto& rp : refProds_){
           soaViewManager.addView(rp->template const_view<T>());
         }
+        return soaViewManager;
       }
-      return soaViewManager;
-
-      /*
-      return std::apply([](auto const&... vs) {
-
-        std::vector<typename Collection::ConstView> constViews;
-
-        if constexpr (std::is_void_v<T>) {
-          // Extract the view from a PortableCollection
-          return MultiSoAViewManager<typename Collection::ConstView, 3>(vs->const_view()...);
-        } else {
-          // Extract the view from a PortableMultiCollection
-          return MultiSoAViewManager<typename Collection::ConstView, 3>(vs->template const_view<T>()...); 
-        }
-      }, refProds_);
-      */
-
-
     }
   }
 
-  const std::vector<edm::RefProd<Collection>>& refProds() const { return refProds_; }
+  [[nodiscard]] const std::vector<edm::RefProd<Collection>>& refProds() const { return refProds_; }
   
 private:
   std::vector<edm::RefProd<Collection>> refProds_;
