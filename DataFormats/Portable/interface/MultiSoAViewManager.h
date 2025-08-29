@@ -5,6 +5,7 @@
 #include <concepts>
 #include <cstddef>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 
 #include <alpaka/alpaka.hpp>
@@ -31,24 +32,23 @@
  * constructor—no dynamic addition of views is supported.
  */
 
-template <typename ConstView>
+template <typename ConstView, uint8_t MaxSize = 5>
 class MultiSoAViewManager {
 public:
   using ConstElement = typename ConstView::const_element;
-  static constexpr std::size_t maxSize = 10;
 
   MultiSoAViewManager() = default;
 
   
   template <typename... ConstViews>
   MultiSoAViewManager(const ConstViews&... views) : views_{{views...}}, offsets_{} {
-    static_assert(sizeof...(ConstViews) < maxSize, "Number of arguments must not exceed the maximum size");
+    static_assert(sizeof...(ConstViews) < MaxSize, "Number of arguments must not exceed the maximum number of views that can be added");
     ((offsets_[n_] = totalSize_, totalSize_ += views.metadata().size(), ++n_), ...);
   }
   
 
   void addView(ConstView const& constView) {
-    assert(n_ < maxSize && "ViewManager can only handle 10 views");
+    assert(n_ < MaxSize && ("Added view exceeds the maximum number of views that can be added: " + std::to_string(MaxSize)).c_str());
 
     views_[n_] = constView;
     offsets_[n_] = totalSize_;
@@ -93,8 +93,8 @@ public:
   ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE std::size_t size() const { return totalSize_; }
 
 private:
-  std::array<ConstView, maxSize> views_;
-  std::array<std::size_t, maxSize> offsets_;
+  std::array<ConstView, MaxSize> views_;
+  std::array<std::size_t, MaxSize> offsets_;
   std::size_t totalSize_{0};
 
   std::size_t n_{0};
