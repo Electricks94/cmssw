@@ -58,6 +58,7 @@ TEST_CASE("Test CachingAllocator") {
     alpaka::exec<Acc1D>(queue, workDiv, TestKernel{}, testData2, nElements);
     alpaka::wait(queue);
     allocator.free(memPtr2);
+    
 
     alpaka::wait(queue);
 

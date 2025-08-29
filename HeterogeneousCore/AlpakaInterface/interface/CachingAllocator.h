@@ -220,14 +220,6 @@ namespace cms::alpakatools {
       block.queue = std::move(queue);
       block.requested = bytes;
       std::tie(block.bin, block.bytes) = findBin(bytes);
-
-#ifdef NVTX_EXTMEM_AVAILABLE
-      
-  // Create the NVTX domain
-  auto mynvtxDomain = nvtxDomainCreateA("my-domain");
-#endif
-      
-
       // try to re-use a cached block, or allocate a new buffer
       if (tryReuseCachedBlock(block)) {
         // fill the re-used memory block with a pattern
@@ -243,6 +235,43 @@ namespace cms::alpakatools {
           immediateOrAsyncMemset(*block.queue, *block.buffer, fillAllocationValue_);
         }
       }
+
+#ifdef NVTX_EXTMEM_AVAILABLE
+      
+  // Create the NVTX domain
+  auto mynvtxDomain = nvtxDomainCreateA("Alpaka-CachingAllocator-domain");
+  nvtxMemVirtualRangeDesc_t myPoolRangeDesc = {};
+
+  myPoolRangeDesc.size = block.bytes; // Size of the range memory pool
+  myPoolRangeDesc.ptr  = block.buffer->data();     // Pointer to the pool itself
+
+  nvtxMemHeapDesc_t myHeapDesc = {}; // Descriptor for the heap
+ 
+  myHeapDesc.extCompatID = NVTX_EXT_COMPATID_MEM;
+  myHeapDesc.structSize = sizeof(nvtxMemHeapDesc_t);
+  myHeapDesc.usage = NVTX_MEM_HEAP_USAGE_TYPE_SUB_ALLOCATOR;
+  myHeapDesc.type = NVTX_MEM_TYPE_VIRTUAL_ADDRESS;
+  myHeapDesc.typeSpecificDescSize = sizeof(nvtxMemVirtualRangeDesc_t);
+  myHeapDesc.typeSpecificDesc = &myPoolRangeDesc;
+ 
+  auto mynvtxPool = nvtxMemHeapRegister(mynvtxDomain, &myHeapDesc);
+   
+  // Register bucket as a suballocated region in NVTX
+  nvtxMemVirtualRangeDesc_t mySubRangeDesc = {}; // Descriptor for the range
+  mySubRangeDesc.size = bytes; // Size of your suballocation (in bytes)
+  mySubRangeDesc.ptr  = block.buffer->data();     // Pointer to the suballocation
+ 
+  nvtxMemRegionsRegisterBatch_t myRegionsDesc = {};
+  myRegionsDesc.extCompatID = NVTX_EXT_COMPATID_MEM;
+  myRegionsDesc.structSize  = sizeof(nvtxMemRegionsRegisterBatch_t);
+  myRegionsDesc.regionType  = NVTX_MEM_TYPE_VIRTUAL_ADDRESS;
+  myRegionsDesc.heap = mynvtxPool; // The heap you registered earlier
+  myRegionsDesc.regionCount = 1;
+  myRegionsDesc.regionDescElementSize = sizeof(nvtxMemVirtualRangeDesc_t);
+  myRegionsDesc.regionDescElements = &mySubRangeDesc;
+ 
+  nvtxMemRegionsRegister(mynvtxDomain, &myRegionsDesc);
+#endif
 
       return block.buffer->data();
     }
