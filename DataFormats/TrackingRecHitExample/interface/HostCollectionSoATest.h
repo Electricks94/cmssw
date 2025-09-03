@@ -1,7 +1,7 @@
 #ifndef TrackingRecHitExample_interface_HostCollectionTest_h
 #define TrackingRecHitExample_interface_HostCollectionTest_h
 
-#include "CommonTools/RecoAlgos/interface/MultiCollectionManager.h"
+#include "DataFormats/Common/interface/MultiCollectionManager.h"
 
 #include "DataFormats/TrackingRecHitSoA/interface/TrackingRecHitsSoA.h"
 #include "DataFormats/TrackingRecHitSoA/interface/TrackingRecHitsHost.h"

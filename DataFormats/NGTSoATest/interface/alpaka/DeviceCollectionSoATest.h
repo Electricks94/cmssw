@@ -1,7 +1,7 @@
 #ifndef NGTSoATest_interface_DeviceCollectionTest_h
 #define NGTSoATest_interface_DeviceCollectionTest_h
 
-#include "CommonTools/RecoAlgos/interface/MultiCollectionManager.h"
+#include "DataFormats/Common/interface/MultiCollectionManager.h"
 
 #include "DataFormats/NGTSoATest/interface/HostCollectionSoATest.h"
 #include "DataFormats/Portable/interface/alpaka/PortableCollection.h"
