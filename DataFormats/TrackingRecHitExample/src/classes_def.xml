@@ -1,0 +1,9 @@
+<lcgdict>
+
+  <class name="reco::TrackingBlocksLayout<128, false>"/>
+
+  <class name="reco::TrackingRecHitHostBlocks"/>
+  <class name="edm::Wrapper<reco::TrackingRecHitHostBlocks>" splitLevel="0"/>
+
+  
+</lcgdict>
