@@ -27,7 +27,7 @@ private:
   const edm::EDGetTokenT<HGCRecHitCollection> hits_ee_token_;
   const edm::EDGetTokenT<HGCRecHitCollection> hits_fh_token_;
   const edm::EDGetTokenT<HGCRecHitCollection> hits_bh_token_;
-  const edm::EDGetTokenT<MultiCollection<HGCRecHitCollection>> hgcalToken_;
+  const edm::EDGetTokenT<edm::MultiCollection<HGCRecHitCollection>> hgcalToken_;
   const edm::EDGetTokenT<reco::PFRecHitCollection> hits_eb_token_;
   const edm::EDGetTokenT<reco::PFRecHitCollection> hits_hb_token_;
   const edm::EDGetTokenT<reco::PFRecHitCollection> hits_ho_token_;
@@ -39,7 +39,7 @@ DEFINE_FWK_MODULE(RecHitMapProducer);
 using DetIdRecHitMap = std::unordered_map<DetId, const unsigned int>;
 
 RecHitMapProducer::RecHitMapProducer(const edm::ParameterSet& ps)
-    : hgcalToken_{consumes<MultiCollection<HGCRecHitCollection>>(
+    : hgcalToken_{consumes<edm::MultiCollection<HGCRecHitCollection>>(
           ps.getParameter<edm::InputTag>("HGCalMultiRecHits"))},
       hits_eb_token_(consumes<reco::PFRecHitCollection>(ps.getParameter<edm::InputTag>("EBInput"))),
       hits_hb_token_(consumes<reco::PFRecHitCollection>(ps.getParameter<edm::InputTag>("HBInput"))),
