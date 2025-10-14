@@ -24,13 +24,9 @@ public:
   void produce(edm::StreamID, edm::Event&, const edm::EventSetup&) const override;
 
 private:
-  const edm::EDGetTokenT<HGCRecHitCollection> hits_ee_token_;
-  const edm::EDGetTokenT<HGCRecHitCollection> hits_fh_token_;
-  const edm::EDGetTokenT<HGCRecHitCollection> hits_bh_token_;
   const edm::EDGetTokenT<edm::MultiCollection<HGCRecHitCollection>> hgcalToken_;
-  const edm::EDGetTokenT<reco::PFRecHitCollection> hits_eb_token_;
-  const edm::EDGetTokenT<reco::PFRecHitCollection> hits_hb_token_;
-  const edm::EDGetTokenT<reco::PFRecHitCollection> hits_ho_token_;
+  std::vector<edm::EDGetTokenT<reco::PFRecHitCollection>> barrel_hits_token_;
+
   bool hgcalOnly_;
 };
 
@@ -38,13 +34,16 @@ DEFINE_FWK_MODULE(RecHitMapProducer);
 
 using DetIdRecHitMap = std::unordered_map<DetId, const unsigned int>;
 
-RecHitMapProducer::RecHitMapProducer(const edm::ParameterSet& ps)
-    : hgcalToken_{consumes<edm::MultiCollection<HGCRecHitCollection>>(
-          ps.getParameter<edm::InputTag>("HGCalMultiRecHits"))},
-      hits_eb_token_(consumes<reco::PFRecHitCollection>(ps.getParameter<edm::InputTag>("EBInput"))),
-      hits_hb_token_(consumes<reco::PFRecHitCollection>(ps.getParameter<edm::InputTag>("HBInput"))),
-      hits_ho_token_(consumes<reco::PFRecHitCollection>(ps.getParameter<edm::InputTag>("HOInput"))),
-      hgcalOnly_(ps.getParameter<bool>("hgcalOnly")) {
+RecHitMapProducer::RecHitMapProducer(const edm::ParameterSet& ps) : hgcalToken_{consumes<edm::MultiCollection<HGCRecHitCollection>>(ps.getParameter<edm::InputTag>("HGCalMultiRecHits"))},
+                                                                    hgcalOnly_(ps.getParameter<bool>("hgcalOnly")), 
+{
+  std::vector<edm::InputTag> tags = ps.getParameter<std::vector<edm::InputTag>>("hits");
+  for (auto& tag : tags) {
+    if (tag.label().find("HGCalRecHit") == std::string::npos) {
+      barrel_hits_token_.push_back(consumes<reco::PFRecHitCollection>(tag));
+    }
+  }
+
   produces<DetIdRecHitMap>("hgcalRecHitMap");
   if (!hgcalOnly_)
     produces<DetIdRecHitMap>("barrelRecHitMap");
@@ -53,9 +52,10 @@ RecHitMapProducer::RecHitMapProducer(const edm::ParameterSet& ps)
 void RecHitMapProducer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   edm::ParameterSetDescription desc;
   desc.add<edm::InputTag>("HGCalMultiRecHits", {"hgcalRecHitMultiCollectionProducer", ""});
-  desc.add<edm::InputTag>("EBInput", {"particleFlowRecHitECAL", ""});
-  desc.add<edm::InputTag>("HBInput", {"particleFlowRecHitHBHE", ""});
-  desc.add<edm::InputTag>("HOInput", {"particleFlowRecHitHO", ""});
+  desc.add<std::vector<edm::InputTag>>("hits",
+                                       {edm::InputTag("HGCalRecHit", "HGCEERecHits"),
+                                        edm::InputTag("HGCalRecHit", "HGCHEFRecHits"),
+                                        edm::InputTag("HGCalRecHit", "HGCHEBRecHits")});
   desc.add<bool>("hgcalOnly", true);
   descriptions.add("recHitMapProducer", desc);
 }
