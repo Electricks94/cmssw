@@ -20,50 +20,74 @@
 #include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
 
 #include "DataFormats/Common/interface/MultiCollection.h"
+#include "DataFormats/ParticleFlowReco/interface/PFRecHit.h"
 #include "DataFormats/HGCRecHit/interface/HGCRecHitCollections.h"
 
 class HGCalRecHitMultiCollectionProducer : public edm::global::EDProducer<> {
 public:
-  explicit HGCalRecHitMultiCollectionProducer(edm::ParameterSet const& ps)
-      : eeToken_{consumes<HGCRecHitCollection>(ps.getParameter<edm::InputTag>("EEInput"))},
-        fhToken_{consumes<HGCRecHitCollection>(ps.getParameter<edm::InputTag>("FHInput"))},
-        bhToken_{consumes<HGCRecHitCollection>(ps.getParameter<edm::InputTag>("BHInput"))} {
+  explicit HGCalRecHitMultiCollectionProducer(edm::ParameterSet const& ps) {
+    std::vector<edm::InputTag> tags = ps.getParameter<std::vector<edm::InputTag>>("hits");
+    for (auto& tag : tags) {
+      if (tag.label().find("HGCalRecHit") != std::string::npos) {
+        hgcal_hits_token_.push_back(consumes<HGCRecHitCollection>(tag));
+      } else {
+        barrel_hits_token_.push_back(consumes<reco::PFRecHitCollection>(tag));
+      }
+    }
+
     produces<edm::MultiCollection<HGCRecHitCollection>>();
+    produces<edm::MultiCollection<reco::PFRecHitCollection>>();
   }
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
     edm::ParameterSetDescription desc;
-    desc.add<edm::InputTag>("EEInput", {"HGCalRecHit", "HGCEERecHits"});
-    desc.add<edm::InputTag>("FHInput", {"HGCalRecHit", "HGCHEFRecHits"});
-    desc.add<edm::InputTag>("BHInput", {"HGCalRecHit", "HGCHEBRecHits"});
+    desc.add<std::vector<edm::InputTag>>("hits",
+                                         {edm::InputTag("HGCalRecHit", "HGCEERecHits"),
+                                          edm::InputTag("HGCalRecHit", "HGCHEFRecHits"),
+                                          edm::InputTag("HGCalRecHit", "HGCHEBRecHits")});
     descriptions.add("hgcalRecHitMultiCollectionProducer", desc);
   }
 
   void produce(edm::StreamID, edm::Event& evt, edm::EventSetup const&) const override {
-    // Retrieve input collections
-    auto const& ee = evt.getHandle(eeToken_);
-    auto const& fh = evt.getHandle(fhToken_);
-    auto const& bh = evt.getHandle(bhToken_);
+    // Retrieve collections
+    const auto& ee_hits = evt.getHandle(hgcal_hits_token_[0]);
+    const auto& fh_hits = evt.getHandle(hgcal_hits_token_[1]);
+    const auto& bh_hits = evt.getHandle(hgcal_hits_token_[2]);
 
-    if (!ee.isValid() || !fh.isValid() || !bh.isValid()) {
+    // Check validity of all handles
+    if ((ee_hits.isValid()) && (fh_hits.isValid()) && (bh_hits.isValid())) {
+      auto mcHGCRecHit = std::make_unique<edm::MultiCollection<HGCRecHitCollection>>();
+      mcHGCRecHit->add(edm::RefProd<HGCRecHitCollection>(ee_hits));
+      mcHGCRecHit->add(edm::RefProd<HGCRecHitCollection>(fh_hits));
+      mcHGCRecHit->add(edm::RefProd<HGCRecHitCollection>(bh_hits));
+      evt.put(std::move(mcHGCRecHit));
+    } else {
       edm::LogWarning("HGCalRecHitMultiCollectionProducer")
-          << "At least one HGCal rechit collection is missing. Producing an empty multiCollection.";
+          << "At least one HGCal rechit collection is missing. Producing an empty "
+             "MultiCollection<HGCRecHitCollection>.";
       evt.put(std::make_unique<edm::MultiCollection<HGCRecHitCollection>>());
-      return;
     }
 
-    auto mc = std::make_unique<edm::MultiCollection<HGCRecHitCollection>>();
-    mc->add(edm::RefProd<HGCRecHitCollection>(ee));
-    mc->add(edm::RefProd<HGCRecHitCollection>(fh));
-    mc->add(edm::RefProd<HGCRecHitCollection>(bh));
+    // Retrieve collections
+    const auto& ecal_hits = evt.getHandle(barrel_hits_token_[0]);
+    const auto& hbhe_hits = evt.getHandle(barrel_hits_token_[1]);
 
-    evt.put(std::move(mc));
+    if ((ecal_hits.isValid()) && (hbhe_hits.isValid())) {
+      auto mcPFRecHit = std::make_unique<edm::MultiCollection<reco::PFRecHitCollection>>();
+      mcPFRecHit->add(edm::RefProd<reco::PFRecHitCollection>(ecal_hits));
+      mcPFRecHit->add(edm::RefProd<reco::PFRecHitCollection>(hbhe_hits));
+      evt.put(std::move(mcPFRecHit));
+    } else {
+      edm::LogWarning("HGCalRecHitMultiCollectionProducer")
+          << "One or more barrel hit collections are unavailable. Producing an empty "
+             "MultiCollection<reco::PFRecHitCollection>.";
+      evt.put(std::make_unique<edm::MultiCollection<reco::PFRecHitCollection>>());
+    }
   }
 
 private:
-  const edm::EDGetTokenT<HGCRecHitCollection> eeToken_;
-  const edm::EDGetTokenT<HGCRecHitCollection> fhToken_;
-  const edm::EDGetTokenT<HGCRecHitCollection> bhToken_;
+  std::vector<edm::EDGetTokenT<HGCRecHitCollection>> hgcal_hits_token_;
+  std::vector<edm::EDGetTokenT<reco::PFRecHitCollection>> barrel_hits_token_;
 };
 
 DEFINE_FWK_MODULE(HGCalRecHitMultiCollectionProducer);
