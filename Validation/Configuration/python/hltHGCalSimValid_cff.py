@@ -15,19 +15,10 @@ from RecoLocalCalo.HGCalRecProducers.recHitMapProducer_cfi import recHitMapProdu
 
 from RecoLocalCalo.HGCalRecProducers.hgcalRecHitMultiCollectionProducer_cfi import hgcalRecHitMultiCollectionProducer as _hgcalRecHitMultiCollectionProducer
 
+hits = ["hltHGCalRecHit:HGCEERecHits", "hltHGCalRecHit:HGCHEFRecHits", "hltHGCalRecHit:HGCHEBRecHits"]
+hltHgcalRecHitMultiCollectionProducer = _hgcalRecHitMultiCollectionProducer.clone(hits=hits)
 
-hltHgcalRecHitMultiCollectionProducer = _hgcalRecHitMultiCollectionProducer.clone(
-    EEInput = cms.InputTag("hltHGCalRecHit","HGCEERecHits"),
-    FHInput = cms.InputTag("hltHGCalRecHit","HGCHEFRecHits"),
-    BHInput = cms.InputTag("hltHGCalRecHit","HGCHEBRecHits"),
-)
-
-hltRecHitMapProducer = _recHitMapProducer.clone(
-    EBInput = cms.InputTag("hltParticleFlowRecHitECALUnseeded"),
-    HBInput = cms.InputTag("hltParticleFlowRecHitHBHE"),
-    HOInput = cms.InputTag("hltParticleFlowRecHitHO"),
-    hgcalOnly = cms.bool(True),
-)
+hltRecHitMapProducer = _recHitMapProducer.clone(hgcalOnly=True)
 
 hltLcAssocByEnergyScoreProducer = _lcAssocByEnergyScoreProducer.clone(
     hits = cms.VInputTag("hltHGCalRecHit:HGCEERecHits", "hltHGCalRecHit:HGCHEFRecHits", "hltHGCalRecHit:HGCHEBRecHits"),
@@ -106,9 +97,8 @@ hltAllTrackstersToSimTrackstersAssociationsByHits = _AllTracksterToSimTracksterA
     ),
 )
 
-hltHgcalAssociatorsTask = cms.Task(
-    hltHgcalRecHitMultiCollectionProducer, 
-    hltRecHitMapProducer,
+hltHgcalAssociatorsTask = cms.Task(hltHgcalRecHitMultiCollectionProducer, 
+                                   hltRecHitMapProducer,
                                    hltLcAssocByEnergyScoreProducer,
                                    hltScAssocByEnergyScoreProducer,
                                    SimClusterToCaloParticleAssociation,

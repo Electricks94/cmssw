@@ -39,8 +39,7 @@ RecHitMapProducer::RecHitMapProducer(const edm::ParameterSet& ps)
           ps.getParameter<edm::InputTag>("HGCalMultiRecHits"))},
       barrelToken_{
           consumes<edm::MultiCollection<reco::PFRecHitCollection>>(ps.getParameter<edm::InputTag>("HGCalBarrelHits"))},
-      hgcalOnly_(ps.getParameter<bool>("hgcalOnly"))
-{
+      hgcalOnly_(ps.getParameter<bool>("hgcalOnly")) {
   produces<DetIdRecHitMap>("hgcalRecHitMap");
   if (!hgcalOnly_)
     produces<DetIdRecHitMap>("barrelRecHitMap");
