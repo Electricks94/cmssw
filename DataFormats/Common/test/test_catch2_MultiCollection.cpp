@@ -32,7 +32,6 @@ TEST_CASE("MultiCollection basic test", "[MultiCollection]") {
     REQUIRE(ms.size() == 0);
   }
 
-
   SECTION("Check correctness of produced MultiSpan") {
     auto ms = mc.makeFlatView();
     REQUIRE(ms.size() == 5);
@@ -90,5 +89,4 @@ TEST_CASE("MultiCollection basic test", "[MultiCollection]") {
     REQUIRE(refProds[1]->size() == b.size());
     REQUIRE(refProds[2]->size() == c.size());
   }
-
 }

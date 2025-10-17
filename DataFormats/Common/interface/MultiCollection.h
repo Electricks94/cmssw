@@ -31,7 +31,7 @@ namespace edm {
     using value_type = typename Collection::value_type;
 
     MultiCollection() = default;
-    
+
     explicit MultiCollection(std::initializer_list<edm::RefProd<Collection>> refs) : refProds_{refs} {}
 
     // ---------------- producer‑side API ----------------------------------
@@ -47,9 +47,8 @@ namespace edm {
     [[nodiscard]] MultiSpan<value_type> makeFlatView() const {
       MultiSpan<value_type> ms;
       // Framework‑managed retrieval
-      std::ranges::for_each(refProds_, [&](auto const& rp) {
-        ms.add(std::span<const value_type>(rp->data(), rp->size()));
-      });
+      std::ranges::for_each(refProds_,
+                            [&](auto const& rp) { ms.add(std::span<const value_type>(rp->data(), rp->size())); });
       return ms;
     }
 
