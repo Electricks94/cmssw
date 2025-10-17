@@ -2,6 +2,7 @@
 #ifndef DataFormats_Common_MultiCollection_h
 #define DataFormats_Common_MultiCollection_h
 
+#include <ranges>
 #include <span>
 #include <utility>
 #include <vector>
@@ -30,7 +31,7 @@ namespace edm {
     using value_type = typename Collection::value_type;
 
     MultiCollection() = default;
-
+    
     explicit MultiCollection(std::initializer_list<edm::RefProd<Collection>> refs) : refProds_{refs} {}
 
     // ---------------- producer‑side API ----------------------------------
@@ -45,14 +46,14 @@ namespace edm {
    */
     [[nodiscard]] MultiSpan<value_type> makeFlatView() const {
       MultiSpan<value_type> ms;
-      for (auto const& rp : refProds_) {
-        auto const& coll = *rp;  // Framework‑managed retrieval
-        ms.add(std::span<const value_type>(coll.data(), coll.size()));
-      }
+      // Framework‑managed retrieval
+      std::ranges::for_each(refProds_, [&](auto const& rp) {
+        ms.add(std::span<const value_type>(rp->data(), rp->size()));
+      });
       return ms;
     }
 
-    const std::vector<edm::RefProd<Collection>>& refProds() const { return refProds_; }
+    [[nodiscard]] const std::vector<edm::RefProd<Collection>>& refProds() const { return refProds_; }
 
   private:
     std::vector<edm::RefProd<Collection>> refProds_;
