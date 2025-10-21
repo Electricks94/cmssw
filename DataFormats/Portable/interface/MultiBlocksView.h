@@ -1,5 +1,5 @@
-#ifndef DataFormats_Portable_interface_MultiView_h
-#define DataFormats_Portable_interface_MultiView_h
+#ifndef DataFormats_Portable_interface_MultiBlocksView_h
+#define DataFormats_Portable_interface_MultiBlocksView_h
 
 #include <array>
 #include <concepts>
@@ -11,21 +11,22 @@
 #include <alpaka/alpaka.hpp>
 
 #include "FWCore/Utilities/interface/CMSUnrollLoop.h"
+#include "DataFormats/Portable/interface/PortableCollectionCommon.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 
 
 /**
  * @brief Aggregates multiple views into a single combined view, similar to `MultiVectorManager`.
  *
- * `MultiView` stores multiple views as references within an `std::array`, 
+ * `MultiBlocksView` stores multiple views as references within an `std::array`, 
  * accompanied by an offset array to enable access via a global index. 
- * Thanks to the use of `std::array`, instances of `MultiView` can be passed 
+ * Thanks to the use of `std::array`, instances of `MultiBlocksView` can be passed 
  * directly by value to kernels without requiring device memory copies.
  *
  * This manager does not own or copy the underlying data; instead, it maintains lightweight 
  * references to existing views, minimizing memory overhead and construction cost.
  * However, since the underlying SoA memories are not contiguous, cacheline inefficiencies 
- * may arise. Therefore, `MultiView` is best suited for use with large SoA views 
+ * may arise. Therefore, `MultiBlocksView` is best suited for use with large SoA views 
  * where such overhead is amortized.
  *
  * To ensure clarity and performance, SoA views must be provided explicitly through the 
@@ -33,31 +34,33 @@
  */
 
 template <typename ConstView, uint8_t MaxSize = 5>
-class MultiView {
+class MultiBlocksView {
 public:
-  using ConstElement = typename ConstView::const_element;
+//   using ConstElement = typename ConstView::template view_type<0>::const_element;
 
-  MultiView() = default;
+  MultiBlocksView() = default;
 
-  
   template <typename... ConstViews>
-  MultiView(const ConstViews&... views) : views_{{views...}}, offsets_{} {
+  MultiBlocksView(const ConstViews&... views) : views_{{views...}}, offsets_{} {
     static_assert(sizeof...(ConstViews) <= MaxSize, "Number of arguments must not exceed the maximum number of views that can be added");
-    ((offsets_[n_] = totalSize_, totalSize_ += views.metadata().size(), ++n_), ...);
+    ((offsets_[n_] = totalSize_, portablecollection::constexpr_for<0, ConstView::blocksNumber>([&](auto I) {
+      totalSize_ += views.template get<I>().metadata().size();
+    }), ++n_), ...);
   }
   
-
   void addView(ConstView const& constView) {
     assert(n_ < MaxSize && ("Added view exceeds the maximum number of views that can be added: " + std::to_string(MaxSize)).c_str());
 
     views_[n_] = constView;
     offsets_[n_] = totalSize_;
-    totalSize_ += constView.metadata().size();
+    portablecollection::constexpr_for<0, ConstView::blocksNumber>([&](auto I) {
+      totalSize_ += views_[n_].template get<I>().metadata().size();
+    });
     ++n_;
-
   }
 
-  const ALPAKA_FN_HOST_ACC ConstElement operator[](const std::size_t globalIndex) const {
+  template <std::size_t I>
+  const ALPAKA_FN_HOST_ACC typename ConstView::template view_type<I>::const_element operator[](const std::size_t globalIndex) const {
     assert(globalIndex < totalSize_ && "Global index out of range");
 
     const std::size_t vi = viewIndex(globalIndex);
@@ -100,4 +103,4 @@ private:
   std::size_t n_{0};
 };
 
-#endif  // DataFormats_Portable_interface_MultiView_h
+#endif  // DataFormats_Portable_interface_MultiBlocksView_h

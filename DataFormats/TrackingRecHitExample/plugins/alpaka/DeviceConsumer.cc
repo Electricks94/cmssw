@@ -45,7 +45,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       // std::cout << "offsetBPIX2: " << manager.offsetBPIX2() << std::endl;
 
       auto view = multiCollection.makeFlatView();
-      const auto totalNumberElements = view.TrackingHits.size();
+      const auto totalNumberElements = view.size();
 
       std::cout << "view.TrackingHits.size(): " << totalNumberElements << std::endl;
 

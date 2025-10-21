@@ -4,7 +4,7 @@
 #include <alpaka/alpaka.hpp>
 
 #define CATCH_CONFIG_MAIN
-#include <catch.hpp>
+#include <catch2/catch_all.hpp>
 
 #include "DataFormats/SoATemplate/interface/SoABlocks.h"
 #include "DataFormats/Portable/interface/PortableCollection.h"
@@ -155,7 +155,7 @@ TEST_CASE("SoABlocks minimal graph in heterogeneous environment") {
       int dst = (j * 7 + 3) % N;
       REQUIRE(graphHostView.edges()[j].src() == src);
       REQUIRE(graphHostView.edges()[j].dst() == dst);
-      REQUIRE(graphHostView.edges()[j].cost() == Approx(0.5f * float(src + dst)));
+      REQUIRE(graphHostView.edges()[j].cost() == Catch::Approx(0.5f * float(src + dst)));
     }
   }
 }

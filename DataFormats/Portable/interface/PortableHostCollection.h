@@ -93,7 +93,6 @@ public:
     // Alpaka set to a default alignment of 128 bytes defining ALPAKA_DEFAULT_HOST_MEMORY_ALIGNMENT=128
     assert(reinterpret_cast<uintptr_t>(buffer_->data()) % Layout::alignment == 0);
   }
->>>>>>> a7019eabe4a (Added SoABlocks feature)
 
   // non-copyable
   PortableHostCollection(PortableHostCollection const&) = delete;

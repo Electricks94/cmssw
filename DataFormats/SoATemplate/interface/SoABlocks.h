@@ -112,6 +112,25 @@
               BOOST_PP_EMPTY(),                                                  \
               BOOST_PP_EXPAND(_DECLARE_CONST_VIEW_SIZES_IMPL NAME))
 
+#define _DECLARE_CONST_VIEW_TYPES_BLOCKS_IMPL(VALUE_TYPE, NAME, LAYOUT_NAME) \
+  (typename LAYOUT_NAME<ALIGNMENT>::ConstView)
+
+#define _DECLARE_CONST_VIEW_TYPES_BLOCKS(R, DATA, NAME)                        \
+  BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, NAME), _VALUE_TYPE_BLOCK), \
+              BOOST_PP_EMPTY(),                                                  \
+              BOOST_PP_EXPAND(_DECLARE_CONST_VIEW_TYPES_BLOCKS_IMPL NAME))  
+
+// Select the member whose type matches view_type<I>
+#define _DECLARE_GET_VIEWS_IMPL(VALUE_TYPE, NAME, LAYOUT_NAME)                                    \
+  if constexpr (std::is_same_v<view_type<I>, typename LAYOUT_NAME<ALIGNMENT>::ConstView>) {  \
+    return BOOST_PP_CAT(NAME, View_);                                                             \
+  }
+
+#define _DECLARE_GET_VIEWS(R, DATA, NAME)                                 \
+  BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, NAME), _VALUE_TYPE_BLOCK), \
+              BOOST_PP_EMPTY(),                                                  \
+              BOOST_PP_EXPAND(_DECLARE_GET_VIEWS_IMPL NAME))  
+
 /*
  * Declare the data members for the ConstView of the SoA by blocks
  */
@@ -321,6 +340,8 @@
                                                                                                                        \
     struct ConstView {                                                                                                 \
       friend struct View;                                                                                              \
+      static constexpr size_type blocksNumber = CLASS::blocksNumber;                                                   \
+                                                                                                                       \
       /* Helper/friend class allowing SoA by blocks ConstView introspection. */                                        \
       struct Metadata {                                                                                                \
         friend ConstView;                                                                                              \
@@ -365,6 +386,20 @@
                                                                                                                        \
       /* Accessors for the const views for each block */                                                               \
       _ITERATE_ON_ALL(_DECLARE_ACCESSORS_CONST_VIEW_BLOCKS, ~, __VA_ARGS__)                                            \
+                                                                                                                       \
+      using tuple_views = std::tuple<                                                                                  \
+          _ITERATE_ON_ALL_COMMA(_DECLARE_CONST_VIEW_TYPES_BLOCKS, ~, __VA_ARGS__)>;                                    \
+                                                                                                                       \
+      template <std::size_t I>                                                                                         \
+      using view_type = std::tuple_element_t<I, tuple_views>;                                                          \
+                                                                                                                       \
+      template <std::size_t I>                                                                                         \
+      constexpr auto const& get() const {                                                                              \
+        _ITERATE_ON_ALL(_DECLARE_GET_VIEWS, ~, __VA_ARGS__)                                                            \
+        else {                                                                                                         \
+          static_assert(I < blocksNumber, "Index out of bounds in SoA Blocks view_type<I>::get()");                    \
+        }                                                                                                              \
+      }                                                                                                                \
                                                                                                                        \
       private:                                                                                                         \
         _ITERATE_ON_ALL(_DECLARE_MEMBERS_CONST_VIEW_BLOCKS, ~, __VA_ARGS__)                                            \

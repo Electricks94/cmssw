@@ -11,6 +11,7 @@
 #include "DataFormats/Common/interface/RefProd.h"
 #include "DataFormats/Common/interface/MultiSpan.h"
 #include "DataFormats/Portable/interface/MultiView.h"
+#include "DataFormats/Portable/interface/MultiBlocksView.h"
 
 #include "HeterogeneousCore/AlpakaInterface/interface/CopyToDevice.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/CopyToHost.h"
@@ -68,21 +69,13 @@ public:
       }
       return ms;
     } else {
-      if constexpr (std::is_void_v<T>) {
-        MultiView<typename Collection::ConstView> soaViewManager;
+        MultiBlocksView<typename Collection::ConstView> soaViewManager;
         for(const auto& rp : refProds_){
           soaViewManager.addView(rp->const_view());
         }
         return soaViewManager;
-      } else {
-        MultiView<typename T::ConstView> soaViewManager;
-        for(const auto& rp : refProds_){
-          soaViewManager.addView(rp->template const_view<T>());
-        }
-        return soaViewManager;
-      }
+      } 
     }
-  }
 
   [[nodiscard]] const std::vector<edm::RefProd<Collection>>& refProds() const { return refProds_; }
   
