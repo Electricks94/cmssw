@@ -11,7 +11,7 @@
     std::cerr << "Failed assertion: " #A " at  " __FILE__ "(" << __LINE__ << ")" << std::endl; \
     abort();                                                                                   \
   }
-
+// test message
 class FakeSoA {
 public:
   static constexpr size_t padding_ = 128;
