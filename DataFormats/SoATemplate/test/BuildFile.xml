@@ -24,13 +24,6 @@
   <use name="DataFormats/SoATemplate"/>
 </bin>
 
-<bin file="SoAGenericView_t.cc" name="SoAGenericView_t">
-  <use name="boost"/>
-  <use name="catch2"/>
-  <use name="eigen"/>
-  <use name="DataFormats/SoATemplate"/>
-</bin>
-
 <bin file="SoACustomizedMethods_t.cc" name="SoACustomizedMethods_t">
   <use name="boost"/>
   <use name="catch2"/>

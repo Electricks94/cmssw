@@ -381,7 +381,6 @@ namespace cms::soa {
       _soa_impl_curMem += cms::soa::alignSize(elements_ * sizeof(CPP_TYPE::Scalar), alignment)                         \
         * CPP_TYPE::RowsAtCompileTime * CPP_TYPE::ColsAtCompileTime;                                                   \
   )                                                                                                                    \
-  if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                                \
     if (reinterpret_cast<intptr_t>(BOOST_PP_CAT(NAME, _)) % alignment)                                                 \
       throw std::runtime_error("In layout constructor: misaligned column: " #NAME);
 // clang-format on
@@ -607,7 +606,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
 #define _DECLARE_VIEW_MEMBER_INITIALIZERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                       \
   (BOOST_PP_CAT(NAME, Parameters_)([&]() -> auto {                                                                     \
     auto params = layout.metadata().BOOST_PP_CAT(parametersOf_, NAME)();                                               \
-    if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                              \
       if (reinterpret_cast<intptr_t>(params.addr_) % alignment)                                                        \
         throw std::runtime_error("In constructor by layout: misaligned column: " #NAME);                               \
     return params;                                                                                                     \
@@ -639,7 +637,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
 #define _DECLARE_VIEW_MEMBER_INITIALIZERS_BYCOLUMN_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                              \
   (                                                                                                                    \
     BOOST_PP_CAT(NAME, Parameters_)([&]() -> auto {                                                                    \
-      if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                            \
         if (Metadata:: BOOST_PP_CAT(ParametersTypeOf_, NAME)::checkAlignment(NAME, alignment))                         \
           throw std::runtime_error("In constructor by column: misaligned column: " #NAME);                             \
       return NAME;                                                                                                     \
@@ -676,7 +673,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
             throw std::runtime_error(                                                                                  \
               "In constructor by column pointers: number of elements not equal for every column: "                     \
               BOOST_PP_STRINGIZE(NAME));                                                                               \
-          if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                        \
             if (Metadata:: BOOST_PP_CAT(ParametersTypeOf_, NAME)::                                                     \
               checkAlignment(std::get<0>(NAME).tupleOrPointer(), alignment))                                           \
                 throw std::runtime_error("In constructor by column: misaligned column: " #NAME);                       \
@@ -693,7 +689,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
             throw std::runtime_error(                                                                                  \
               "In constructor by column pointers: number of elements not equal for every column: "                     \
               BOOST_PP_STRINGIZE(NAME));                                                                               \
-          if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                        \
             if (Metadata:: BOOST_PP_CAT(ParametersTypeOf_, NAME)::                                                     \
               checkAlignment(std::get<0>(NAME).tupleOrPointer(), alignment))                                           \
                 throw std::runtime_error("In constructor by column: misaligned column: " #NAME);                       \
@@ -716,7 +711,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
           throw std::runtime_error(                                                                                    \
             "In constructor by column pointers: number of elements not equal for every column: "                       \
             BOOST_PP_STRINGIZE(NAME));                                                                                 \
-          if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                        \
             if (Metadata:: BOOST_PP_CAT(ParametersTypeOf_, NAME)::                                                     \
               checkAlignment(std::get<0>(NAME).tupleOrPointer(), alignment))                                           \
                 throw std::runtime_error("In constructor by column: misaligned column: " #NAME);                       \
@@ -1001,7 +995,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
           throw std::runtime_error(                                                                                  \
             "In constructor by column pointers: number of elements not equal for every column: "                     \
             BOOST_PP_STRINGIZE(NAME));                                                                               \
-        if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                        \
           if (Metadata:: BOOST_PP_CAT(ParametersTypeOf_, NAME)::                                                     \
             checkAlignment(std::get<0>(NAME).tupleOrPointer(), alignment))                                           \
               throw std::runtime_error("In constructor by column: misaligned column: " #NAME);                       \
@@ -1018,7 +1011,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
           throw std::runtime_error(                                                                                  \
             "In constructor by column pointers: number of elements not equal for every column: "                     \
             BOOST_PP_STRINGIZE(NAME));                                                                               \
-        if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                        \
           if (Metadata:: BOOST_PP_CAT(ParametersTypeOf_, NAME)::                                                     \
             checkAlignment(std::get<0>(NAME).tupleOrPointer(), alignment))                                           \
               throw std::runtime_error("In constructor by column: misaligned column: " #NAME);                       \
@@ -1041,7 +1033,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
         throw std::runtime_error(                                                                                    \
           "In constructor by column pointers: number of elements not equal for every column: "                       \
           BOOST_PP_STRINGIZE(NAME));                                                                                 \
-        if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                        \
           if (Metadata:: BOOST_PP_CAT(ParametersTypeOf_, NAME)::                                                     \
             checkAlignment(std::get<0>(NAME).tupleOrPointer(), alignment))                                           \
               throw std::runtime_error("In constructor by column: misaligned column: " #NAME);                       \
@@ -1832,7 +1823,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
   private:                                                                                                             \
     /* Helper method for the user provided storage constructor and ROOT streamer */                                    \
     void organizeColumnsFromBuffer() {                                                                                 \
-      if constexpr (alignmentEnforcement == cms::soa::AlignmentEnforcement::enforced)                                  \
         if (reinterpret_cast<intptr_t>(mem_) % alignment)                                                              \
           throw std::runtime_error("In " #CLASS "::" #CLASS ": misaligned buffer");                                    \
       auto _soa_impl_curMem = mem_;                                                                                    \
