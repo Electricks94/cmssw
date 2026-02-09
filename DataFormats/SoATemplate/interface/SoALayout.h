@@ -155,11 +155,10 @@ namespace cms::soa {
 	return parent_.metadata().BOOST_PP_CAT(parametersOf_, NAME)().addr_;                                           	   \
   } 																												   \
   SOA_HOST_DEVICE SOA_INLINE byte_size_type BOOST_PP_CAT(NAME, Pitch()) const {                                        \
-	return cms::soa::detail::computePitch(parent_.metadata().BOOST_PP_CAT(parametersOf_, NAME)(),					   \
+	return cms::soa::detail::ComputePitch<BOOST_PP_CAT(ParametersTypeOf_, NAME)>{}(					   \
 						ParentClass::alignment, parent_.elements_);													   \
   }
 // clang-format on
-
 #define _DEFINE_METADATA_MEMBERS(R, DATA, TYPE_NAME)                                        \
   BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
               BOOST_PP_EMPTY(),                                                             \
@@ -439,7 +438,7 @@ namespace cms::soa {
  */
 // clang-format off
 #define _ACCUMULATE_SOA_ELEMENT_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                                 \
-  _soa_impl_ret += cms::soa::detail::AccumulateColumnByteSizes<BOOST_PP_CAT(typename Metadata::ParametersTypeOf_, NAME)>{}(elements, alignment);
+  _soa_impl_ret += cms::soa::detail::ComputePitch<BOOST_PP_CAT(typename Metadata::ParametersTypeOf_, NAME)>{}(elements, alignment);
 // clang-format on
 
 #define _ACCUMULATE_SOA_ELEMENT(R, DATA, TYPE_NAME)                                         \

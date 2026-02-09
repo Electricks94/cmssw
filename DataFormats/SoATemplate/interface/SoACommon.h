@@ -48,8 +48,10 @@
     abort();                                                 \
   }
 #else
-#define SOA_THROW_OUT_OF_RANGE(A, I, R) \
-  { throw std::out_of_range(std::format("{}: index {} out of range {}", (A), (I), (R))); }
+#define SOA_THROW_OUT_OF_RANGE(A, I, R)                                                  \
+  {                                                                                      \
+    throw std::out_of_range(std::format("{}: index {} out of range {}", (A), (I), (R))); \
+  }
 #endif
 
 /* declare "scalars" (one value shared across the whole SoA) and "columns" (one value per element) */
@@ -898,57 +900,34 @@ namespace cms::soa::detail {
         cms::soa::alignSize(elements * sizeof(T::Scalar), alignment) * T::RowsAtCompileTime * T::ColsAtCompileTime;
   }
 
-  // Helper functions for accumulating column elements
+  // Helper struct for computing the pitch of each column
   template <typename ColumnType>
-  struct AccumulateColumnByteSizes;
+  struct ComputePitch;
 
   template <typename T>
-  struct AccumulateColumnByteSizes<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::scalar, T>> {
-    cms::soa::byte_size_type operator()(cms::soa::size_type, cms::soa::byte_size_type alignment) const {
+  struct ComputePitch<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::scalar, T>> {
+    SOA_HOST_DEVICE constexpr cms::soa::byte_size_type operator()(cms::soa::size_type,
+                                                                  cms::soa::byte_size_type alignment) const {
       return cms::soa::alignSize(sizeof(T), alignment);
     }
   };
 
   template <typename T>
-  struct AccumulateColumnByteSizes<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::column, T>> {
-    cms::soa::byte_size_type operator()(cms::soa::size_type elements, cms::soa::byte_size_type alignment) const {
+  struct ComputePitch<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::column, T>> {
+    SOA_HOST_DEVICE constexpr cms::soa::byte_size_type operator()(cms::soa::size_type elements,
+                                                                  cms::soa::byte_size_type alignment) const {
       return cms::soa::alignSize(elements * sizeof(T), alignment);
     }
   };
 
   template <typename T>
-  struct AccumulateColumnByteSizes<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::eigen, T>> {
-    cms::soa::byte_size_type operator()(cms::soa::size_type elements, cms::soa::byte_size_type alignment) const {
+  struct ComputePitch<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::eigen, T>> {
+    SOA_HOST_DEVICE constexpr cms::soa::byte_size_type operator()(cms::soa::size_type elements,
+                                                                  cms::soa::byte_size_type alignment) const {
       return cms::soa::alignSize(elements * sizeof(typename T::Scalar), alignment) * T::RowsAtCompileTime *
              T::ColsAtCompileTime;
     }
   };
-
-  // Helper functions for computing the pitch of each column
-  template <typename T>
-  SOA_HOST_DEVICE constexpr cms::soa::byte_size_type computePitch(
-      const cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::scalar, T>& column,
-      cms::soa::byte_size_type alignment,
-      cms::soa::size_type elements) {
-    return cms::soa::alignSize(sizeof(T), alignment);
-  }
-
-  template <typename T>
-  SOA_HOST_DEVICE constexpr cms::soa::byte_size_type computePitch(
-      const cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::column, T>& column,
-      cms::soa::byte_size_type alignment,
-      cms::soa::size_type elements) {
-    return cms::soa::alignSize(elements * sizeof(T), alignment);
-  }
-
-  template <typename T>
-  SOA_HOST_DEVICE constexpr cms::soa::byte_size_type computePitch(
-      const cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::eigen, T>& column,
-      cms::soa::byte_size_type alignment,
-      cms::soa::size_type elements) {
-    return cms::soa::alignSize(elements * sizeof(typename T::Scalar), alignment) * T::RowsAtCompileTime *
-           T::ColsAtCompileTime;
-  }
 
   // Helper type trait for obtaining a span type for a column
   template <typename ColumnType>
