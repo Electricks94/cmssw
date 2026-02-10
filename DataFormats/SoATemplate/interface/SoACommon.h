@@ -48,10 +48,8 @@
     abort();                                                 \
   }
 #else
-#define SOA_THROW_OUT_OF_RANGE(A, I, R)                                                  \
-  {                                                                                      \
-    throw std::out_of_range(std::format("{}: index {} out of range {}", (A), (I), (R))); \
-  }
+#define SOA_THROW_OUT_OF_RANGE(A, I, R) \
+  { throw std::out_of_range(std::format("{}: index {} out of range {}", (A), (I), (R))); }
 #endif
 
 /* declare "scalars" (one value shared across the whole SoA) and "columns" (one value per element) */
@@ -123,6 +121,16 @@ namespace cms::soa {
     using ReferenceToConst = const T&;
   };
 
+  // Matryoshka template to avoid commas inside macros
+  template <CMS_SOA_BYTE_SIZE_TYPE ALIGNMENT>
+  struct LayoutParameters {
+    template <bool ALIGNMENT_ENFORCEMENT>
+    struct AlignmentEnforcement {
+      template <template <CMS_SOA_BYTE_SIZE_TYPE, bool> typename T>
+      using Layout = T<ALIGNMENT, ALIGNMENT_ENFORCEMENT>;
+    };
+  };
+
   // Forward declarations
   template <SoAColumnType COLUMN_TYPE, typename T>
   struct SoAConstParametersImpl;
@@ -137,27 +145,22 @@ namespace cms::soa {
 
     using ValueType = T;
     using ScalarType = T;
-    using TupleOrPointerType = const ValueType*;
 
     // default constructor
     SoAConstParametersImpl() = default;
 
     // constructor from address and size
-    SOA_HOST_DEVICE SOA_INLINE constexpr SoAConstParametersImpl(ValueType const* addr) : addr_(addr) {}
+    SOA_HOST_DEVICE SOA_INLINE constexpr SoAConstParametersImpl(ScalarType const* addr) : addr_(addr) {}
 
     // constructor from a non-const parameter set
     SOA_HOST_DEVICE SOA_INLINE constexpr SoAConstParametersImpl(SoAParametersImpl<columnType, ValueType> const& o)
         : addr_{o.addr_} {}
 
-    static constexpr bool checkAlignment(ValueType* addr, byte_size_type alignment) {
-      return reinterpret_cast<intptr_t>(addr) % alignment;
-    }
-
-    TupleOrPointerType tupleOrPointer() { return addr_; }
+    SOA_HOST_DEVICE SOA_INLINE ScalarType const* data() const { return addr_; }
 
   public:
     // scalar or column
-    ValueType const* addr_ = nullptr;
+    ScalarType const* addr_ = nullptr;
   };
 
   // Templated const parameter specialisation for Eigen columns
@@ -167,7 +170,6 @@ namespace cms::soa {
 
     using ValueType = T;
     using ScalarType = typename T::Scalar;
-    using TupleOrPointerType = std::tuple<const ScalarType*, byte_size_type>;
 
     // default constructor
     SoAConstParametersImpl() = default;
@@ -176,35 +178,17 @@ namespace cms::soa {
     SOA_HOST_DEVICE SOA_INLINE constexpr SoAConstParametersImpl(ScalarType const* addr, byte_size_type stride)
         : addr_(addr), stride_(stride) {}
 
-    // constructor from address and stride packed in a tuple
-    SOA_HOST_DEVICE SOA_INLINE constexpr SoAConstParametersImpl(TupleOrPointerType const& tuple)
-        : addr_(std::get<0>(tuple)), stride_(std::get<1>(tuple)) {}
-
     // constructor from a non-const parameter set
     SOA_HOST_DEVICE SOA_INLINE constexpr SoAConstParametersImpl(SoAParametersImpl<columnType, ValueType> const& o)
         : addr_{o.addr_}, stride_{o.stride_} {}
 
-    static constexpr bool checkAlignment(TupleOrPointerType const& tuple, byte_size_type alignment) {
-      const auto& [addr, stride] = tuple;
-      return reinterpret_cast<intptr_t>(addr) % alignment;
-    }
-
-    TupleOrPointerType tupleOrPointer() { return {addr_, stride_}; }
+    SOA_HOST_DEVICE SOA_INLINE ScalarType const* data() const { return addr_; }
+    SOA_HOST_DEVICE SOA_INLINE byte_size_type stride() const { return stride_; }
 
   public:
     // address, stride and size
     ScalarType const* addr_ = nullptr;
     byte_size_type stride_ = 0;
-  };
-
-  // Matryoshka template to avoid commas inside macros
-  template <CMS_SOA_BYTE_SIZE_TYPE ALIGNMENT>
-  struct LayoutParameters {
-    template <bool ALIGNMENT_ENFORCEMENT>
-    struct AlignmentEnforcement {
-      template <template <CMS_SOA_BYTE_SIZE_TYPE, bool> typename T>
-      using Layout = T<ALIGNMENT, ALIGNMENT_ENFORCEMENT>;
-    };
   };
 
   // Matryoshka template to avoid commas inside macros
@@ -221,7 +205,6 @@ namespace cms::soa {
 
     using ValueType = T;
     using ScalarType = T;
-    using TupleOrPointerType = ValueType*;
 
     using ConstType = SoAConstParametersImpl<columnType, ValueType>;
     friend ConstType;
@@ -230,17 +213,13 @@ namespace cms::soa {
     SoAParametersImpl() = default;
 
     // constructor from address and size
-    SOA_HOST_DEVICE SOA_INLINE constexpr SoAParametersImpl(ValueType* addr) : addr_(addr) {}
+    SOA_HOST_DEVICE SOA_INLINE constexpr SoAParametersImpl(ScalarType* addr) : addr_(addr) {}
 
-    static constexpr bool checkAlignment(ValueType* addr, byte_size_type alignment) {
-      return reinterpret_cast<intptr_t>(addr) % alignment;
-    }
-
-    TupleOrPointerType tupleOrPointer() { return addr_; }
+    SOA_HOST_DEVICE SOA_INLINE ScalarType* data() const { return addr_; }
 
   public:
     // scalar or column
-    ValueType* addr_ = nullptr;
+    ScalarType* addr_ = nullptr;
   };
 
   // Templated parameter specialisation for Eigen columns
@@ -250,7 +229,6 @@ namespace cms::soa {
 
     using ValueType = T;
     using ScalarType = typename T::Scalar;
-    using TupleOrPointerType = std::tuple<ScalarType*, byte_size_type>;
 
     using ConstType = SoAConstParametersImpl<columnType, ValueType>;
     friend ConstType;
@@ -262,16 +240,8 @@ namespace cms::soa {
     SOA_HOST_DEVICE SOA_INLINE constexpr SoAParametersImpl(ScalarType* addr, byte_size_type stride)
         : addr_(addr), stride_(stride) {}
 
-    // constructor from address and stride packed in a tuple
-    SOA_HOST_DEVICE SOA_INLINE constexpr SoAParametersImpl(TupleOrPointerType const& tuple)
-        : addr_(std::get<0>(tuple)), stride_(std::get<1>(tuple)) {}
-
-    static constexpr bool checkAlignment(TupleOrPointerType const& tuple, byte_size_type alignment) {
-      const auto& [addr, stride] = tuple;
-      return reinterpret_cast<intptr_t>(addr) % alignment;
-    }
-
-    TupleOrPointerType tupleOrPointer() { return {addr_, stride_}; }
+    SOA_HOST_DEVICE SOA_INLINE ScalarType* data() const { return addr_; }
+    SOA_HOST_DEVICE SOA_INLINE byte_size_type stride() const { return stride_; }
 
   public:
     // address, stride and size
@@ -619,8 +589,9 @@ namespace cms::soa {
 #endif
 
   // Helper function to compute aligned size
-  //this is an integer division -> it rounds size to the next multiple of alignment
+  // this is an integer division -> it rounds size to the next multiple of alignment
   constexpr inline byte_size_type alignSize(byte_size_type size, byte_size_type alignment) {
+    assert(alignment > 0 && "Alignment for SoA must be > 0");
     return ((size + alignment - 1) / alignment) * alignment;
   }
 
@@ -858,6 +829,12 @@ SOA_HOST_ONLY std::ostream& operator<<(std::ostream& os, const SOA& soa) {
 }
 
 namespace cms::soa::detail {
+  // Helper function to check alignment of a pointer. Returns true if the pointer is not aligned to the specified alignment.
+  template <typename T>
+  SOA_INLINE bool checkAlignment(const T* addr, byte_size_type alignment) {
+    return reinterpret_cast<intptr_t>(addr) % alignment;
+  }
+
   // Helper function for streaming column
   template <typename T>
   void printColumn(std::ostream& soa_impl_os,
