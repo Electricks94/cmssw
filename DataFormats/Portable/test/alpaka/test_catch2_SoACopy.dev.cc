@@ -13,6 +13,7 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
 
 using namespace ALPAKA_ACCELERATOR_NAMESPACE;
+using namespace Catch::Matchers;
 
 using Vector5f = Eigen::Matrix<float, 5, 1>;
 using Vector15f = Eigen::Matrix<float, 15, 1>;
@@ -178,23 +179,23 @@ TEST_CASE("test merge soa alpaka", "[SoAMerge][Alpaka]") {
 
     for (int i = 0; i < nTk1 + nTk2; i++) {
       if (i < nTk1) {
-        REQUIRE(h_viewOut[i].quality() == Catch::Approx(h_view1[i].quality()));
-        REQUIRE(h_viewOut[i].chi2() == Catch::Approx(h_view1[i].chi2()));
+        REQUIRE_THAT(h_viewOut[i].quality(), WithinRel(h_view1[i].quality()));
+        REQUIRE_THAT(h_viewOut[i].chi2(), WithinRel(h_view1[i].chi2()));
         REQUIRE(h_viewOut[i].nLayers() == h_view1[i].nLayers());
-        REQUIRE(h_viewOut[i].eta() == Catch::Approx(h_view1[i].eta()));
-        REQUIRE(h_viewOut[i].pt() == Catch::Approx(h_view1[i].pt()));
-        REQUIRE(h_viewOut[i].state() == h_view1[i].state());
-        REQUIRE(h_viewOut[i].covariance() == h_view1[i].covariance());
-        REQUIRE(h_viewOut[i].matrix() == h_view1[i].matrix());
+        REQUIRE_THAT(h_viewOut[i].eta(), WithinRel(h_view1[i].eta()));
+        REQUIRE_THAT(h_viewOut[i].pt(), WithinRel(h_view1[i].pt()));
+        REQUIRE(h_viewOut[i].state().isApprox(h_view1[i].state()));
+        REQUIRE(h_viewOut[i].covariance().isApprox(h_view1[i].covariance()));
+        REQUIRE(h_viewOut[i].matrix().isApprox(h_view1[i].matrix()));
       } else {
-        REQUIRE(h_viewOut[i].quality() == Catch::Approx(h_view2[i - nTk1].quality()));
-        REQUIRE(h_viewOut[i].chi2() == Catch::Approx(h_view2[i - nTk1].chi2()));
+        REQUIRE_THAT(h_viewOut[i].quality(), WithinRel(h_view2[i - nTk1].quality()));
+        REQUIRE_THAT(h_viewOut[i].chi2(), WithinRel(h_view2[i - nTk1].chi2()));
         REQUIRE(h_viewOut[i].nLayers() == h_view2[i - nTk1].nLayers());
-        REQUIRE(h_viewOut[i].eta() == Catch::Approx(h_view2[i - nTk1].eta()));
-        REQUIRE(h_viewOut[i].pt() == Catch::Approx(h_view2[i - nTk1].pt()));
-        REQUIRE(h_viewOut[i].state() == h_view2[i - nTk1].state());
-        REQUIRE(h_viewOut[i].covariance() == h_view2[i - nTk1].covariance());
-        REQUIRE(h_viewOut[i].matrix() == h_view2[i - nTk1].matrix());
+        REQUIRE_THAT(h_viewOut[i].eta(), WithinRel(h_view2[i - nTk1].eta()));
+        REQUIRE_THAT(h_viewOut[i].pt(), WithinRel(h_view2[i - nTk1].pt()));
+        REQUIRE(h_viewOut[i].state().isApprox(h_view2[i - nTk1].state()));
+        REQUIRE(h_viewOut[i].covariance().isApprox(h_view2[i - nTk1].covariance()));
+        REQUIRE(h_viewOut[i].matrix().isApprox(h_view2[i - nTk1].matrix()));
       }
     }
   }

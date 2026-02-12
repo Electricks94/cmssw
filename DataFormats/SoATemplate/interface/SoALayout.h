@@ -424,7 +424,7 @@ namespace cms::soa {
         * CPP_TYPE::RowsAtCompileTime * CPP_TYPE::ColsAtCompileTime;                                                   \
   )                                                                                                                    \
   if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                                \
-    if (reinterpret_cast<intptr_t>(BOOST_PP_CAT(NAME, _)) % alignment)                                                 \
+    if (cms::soa::detail::checkAlignment(BOOST_PP_CAT(NAME, _), alignment))                                            \
       throw std::runtime_error("In layout constructor: misaligned column: " #NAME);
 // clang-format on
 
@@ -551,11 +551,21 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                   , /* Column */                                            \
                   memcpy(BOOST_PP_CAT(this->metadata().addressOf_, NAME)(), \
                          BOOST_PP_CAT(view.metadata().addressOf_, NAME)(),  \
-                         view.metadata().size() * sizeof(CPP_TYPE));        \
-                  , /* Eigen column */                                      \
-                  memcpy(BOOST_PP_CAT(this->metadata().addressOf_, NAME)(), \
-                         BOOST_PP_CAT(view.metadata().addressOf_, NAME)(),  \
-                         BOOST_PP_CAT(NAME, ElementsWithPadding_) * sizeof(CPP_TYPE::Scalar));)
+                         elements_ * sizeof(CPP_TYPE));                     \
+                  , /* Eigen column */                                                                         \
+                  if(elements_ == view.metadata().size()){                                                     \
+                    memcpy(BOOST_PP_CAT(this->metadata().addressOf_, NAME)(),                                  \
+                    BOOST_PP_CAT(view.metadata().addressOf_, NAME)(),                                          \
+                    BOOST_PP_CAT(NAME, ElementsWithPadding_) * sizeof(CPP_TYPE::Scalar));                      \
+                  } else {                                                                                     \
+                    for(int i = 0; i < CPP_TYPE::RowsAtCompileTime * CPP_TYPE::ColsAtCompileTime; ++i) {       \
+                      const auto offsetDst = i * BOOST_PP_CAT(NAME, Stride_);                                  \
+                      const auto offsetSrc = i * BOOST_PP_CAT(view.metadata().parametersOf_, NAME)().stride(); \
+                      memcpy(BOOST_PP_CAT(this->metadata().addressOf_, NAME)() + offsetDst,                    \
+                      BOOST_PP_CAT(view.metadata().addressOf_, NAME)() + offsetSrc,                            \
+                      BOOST_PP_CAT(NAME, Stride_) * sizeof(CPP_TYPE::Scalar));                                 \
+                    }                                                                                          \
+                  })
 // clang-format on
 
 #define _COPY_VIEW_COLUMNS(R, DATA, TYPE_NAME)                                              \
@@ -650,7 +660,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
   (BOOST_PP_CAT(NAME, Parameters_)([&]() -> auto {                                                                     \
     auto params = layout.metadata().BOOST_PP_CAT(parametersOf_, NAME)();                                               \
     if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                              \
-      if (reinterpret_cast<intptr_t>(params.data()) % alignment)                                                        \
+      if (cms::soa::detail::checkAlignment(params.data(), alignment))                                                  \
         throw std::runtime_error("In constructor by layout: misaligned column: " #NAME);                               \
     return params;                                                                                                     \
   }()))
@@ -660,27 +670,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
   BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
               BOOST_PP_EMPTY(),                                                             \
               BOOST_PP_EXPAND(_DECLARE_VIEW_MEMBER_INITIALIZERS_IMPL TYPE_NAME))
-
-/**
- * Generator of member initialization from constructor.
- * We use a lambda with auto return type to handle multiple possible return types.
- */
-// clang-format off
-#define _DECLARE_VIEW_MEMBER_INITIALIZERS_BYCOLUMN_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                              \
-  (                                                                                                                    \
-    BOOST_PP_CAT(NAME, Parameters_)([&]() -> auto {                                                                    \
-      if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                            \
-        if (Metadata:: BOOST_PP_CAT(ParametersTypeOf_, NAME)::checkAlignment(NAME, alignment))                         \
-          throw std::runtime_error("In constructor by column: misaligned column: " #NAME);                             \
-      return NAME;                                                                                                     \
-    }())                                                                                                               \
-  )
-// clang-format on
-
-#define _DECLARE_VIEW_MEMBER_INITIALIZERS_BYCOLUMN(R, DATA, TYPE_NAME)                      \
-  BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
-              BOOST_PP_EMPTY(),                                                             \
-              BOOST_PP_EXPAND(_DECLARE_VIEW_MEMBER_INITIALIZERS_BYCOLUMN_IMPL TYPE_NAME))
 
 /**
  * Generator of parameters for (const) view Metarecords subclass.
@@ -697,7 +686,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
 #define _INITIALIZE_CONST_VIEW_PARAMETERS_AND_SIZE_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                              \
   _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
       /* Scalar */                                                                                                     \
-        if (not readyToSet) {                                                                                          \
+        if (!readyToSet) {                                                                                             \
           elements_ = std::get<1>(NAME);                                                                               \
           readyToSet = true;                                                                                           \
         }                                                                                                              \
@@ -713,7 +702,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
             }();                                                                                                       \
         ,                                                                                                              \
       /* Column */                                                                                                     \
-        if (not readyToSet) {                                                                                          \
+        if (!readyToSet) {                                                                                             \
           elements_ = std::get<1>(NAME);                                                                               \
           readyToSet = true;                                                                                           \
         }                                                                                                              \
@@ -729,13 +718,13 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
             }();                                                                                                       \
         ,                                                                                                              \
       /* Eigen column */                                                                                               \
-        if (not readyToSet) {                                                                                          \
+        if (!readyToSet) {                                                                                             \
           elements_ = std::get<1>(NAME);                                                                               \
           readyToSet = true;                                                                                           \
         }                                                                                                              \
         BOOST_PP_CAT(NAME, Parameters_) = [&]() -> auto {                                                              \
           if (cms::soa::alignSize(elements_ * sizeof(CPP_TYPE::Scalar), alignment)                                     \
-                    / sizeof(CPP_TYPE::Scalar) != std::get<0>(NAME).stride()) {                                         \
+                    / sizeof(CPP_TYPE::Scalar) != std::get<0>(NAME).stride()) {                                        \
             throw std::runtime_error(                                                                                  \
               "In constructor by column pointers: stride not equal between eigen columns: "                            \
               BOOST_PP_STRINGIZE(NAME));                                                                               \
@@ -1019,7 +1008,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
 #define _INITIALIZE_VIEW_PARAMETERS_AND_SIZE_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                  \
 _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
     /* Scalar */                                                                                                     \
-      if (not readyToSet) {                                                                                          \
+      if (!readyToSet) {                                                                                          \
         base_type::elements_ = std::get<1>(NAME);                                                                    \
         readyToSet = true;                                                                                           \
       }                                                                                                              \
@@ -1035,7 +1024,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
           }();                                                                                                       \
       ,                                                                                                              \
     /* Column */                                                                                                     \
-      if (not readyToSet) {                                                                                          \
+      if (!readyToSet) {                                                                                          \
         base_type::elements_ = std::get<1>(NAME);                                                                    \
         readyToSet = true;                                                                                           \
       }                                                                                                              \
@@ -1051,7 +1040,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
           }();                                                                                                       \
       ,                                                                                                              \
     /* Eigen column */                                                                                               \
-      if (not readyToSet) {                                                                                          \
+      if (!readyToSet) {                                                                                          \
         base_type::elements_ = std::get<1>(NAME);                                                                    \
         readyToSet = true;                                                                                           \
       }                                                                                                              \
@@ -1835,9 +1824,10 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
      * Host-only data can be handled by this method.                                                                   \
      */                                                                                                                \
     SOA_HOST_ONLY void deepCopy(ConstView const& view) {                                                               \
-      if (elements_ < view.metadata().size())                                                                          \
+      if (elements_ > view.metadata().size())                                                                          \
         throw std::runtime_error(                                                                                      \
-            "In "#CLASS"::deepCopy method: number of elements mismatch ");                                             \
+            "In "#CLASS"::deepCopy method: buffer of "#CLASS" is larger than view size: "                              \
+            + std::to_string(elements_) + " > " + std::to_string(view.metadata().size()));                             \
       _ITERATE_ON_ALL(_COPY_VIEW_COLUMNS, ~, __VA_ARGS__)                                                              \
     }                                                                                                                  \
                                                                                                                        \
@@ -1861,7 +1851,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
     /* Helper method for the user provided storage constructor and ROOT streamer */                                    \
     void organizeColumnsFromBuffer() {                                                                                 \
       if constexpr (alignmentEnforcement == cms::soa::AlignmentEnforcement::enforced)                                  \
-        if (reinterpret_cast<intptr_t>(mem_) % alignment)                                                              \
+        if (cms::soa::detail::checkAlignment(mem_, alignment))                                                         \
           throw std::runtime_error("In " #CLASS "::" #CLASS ": misaligned buffer");                                    \
       auto _soa_impl_curMem = mem_;                                                                                    \
       _ITERATE_ON_ALL(_ASSIGN_SOA_COLUMN_OR_SCALAR, ~, __VA_ARGS__)                                                    \

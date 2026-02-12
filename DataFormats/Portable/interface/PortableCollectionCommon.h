@@ -8,7 +8,33 @@
 
 #include "FWCore/Utilities/interface/TypeDemangler.h"
 
+#include "HeterogeneousCore/AlpakaInterface/interface/config.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/host.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/memory.h"
+
 namespace portablecollection {
+
+  template <int I, typename TQueue, typename Descriptor, typename ConstDescriptor>
+  void deepCopy(TQueue& queue, Descriptor& dest, ConstDescriptor const& src) {
+    if constexpr (I < ConstDescriptor::num_cols) {
+      assert(std::get<I>(dest.buff).size_bytes() == std::get<I>(src.buff).size_bytes());
+      alpaka::memcpy(
+          queue,
+          alpaka::createView(alpaka::getDev(queue), std::get<I>(dest.buff).data(), std::get<I>(dest.buff).size()),
+          alpaka::createView(alpaka::getDev(queue), std::get<I>(src.buff).data(), std::get<I>(src.buff).size()));
+      deepCopy<I + 1>(queue, dest, src);
+    }
+  }
+
+  template <int I, typename TQueue, typename Descriptor, typename ConstDescriptor>
+  void deepCopy(TQueue& queue, Descriptor& dest, ConstDescriptor const& src, const int size) {
+    if constexpr (I < ConstDescriptor::num_cols) {
+      alpaka::memcpy(queue,
+                     alpaka::createView(alpaka::getDev(queue), std::get<I>(dest.buff).data(), size),
+                     alpaka::createView(alpaka::getDev(queue), std::get<I>(src.buff).data(), size));
+      deepCopy<I + 1>(queue, dest, src, size);
+    }
+  }
 
   template <std::integral Int>
   constexpr int size_cast(Int input) {
