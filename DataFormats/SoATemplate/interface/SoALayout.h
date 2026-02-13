@@ -10,51 +10,6 @@
 
 #include "SoACommon.h"
 
-/* dump SoA fields information; these should expand to, for columns:
- * Example:
- * GENERATE_SOA_LAYOUT(SoA,
- *   // predefined static scalars
- *   // size_t size;
- *   // size_t alignment;
- *
- *   // columns: one value per element
- *   SOA_COLUMN(double, x),
- *   SOA_COLUMN(double, y),
- *   SOA_COLUMN(double, z),
- *   SOA_EIGEN_COLUMN(Eigen::Vector3d, a),
- *   SOA_EIGEN_COLUMN(Eigen::Vector3d, b),
- *   SOA_EIGEN_COLUMN(Eigen::Vector3d, r),
- *   SOA_COLUMN(uint16_t, colour),
- *   SOA_COLUMN(int32_t, value),
- *   SOA_COLUMN(double *, py),
- *   SOA_COLUMN(uint32_t, count),
- *   SOA_COLUMN(uint32_t, anotherCount),
- *
- *   // scalars: one value for the whole structure
- *   SOA_SCALAR(const char *, description), 
- *   SOA_SCALAR(uint32_t, someNumber)
- * );
- *
- * dumps as:
- * SoA(32, 64):
- *   sizeof(SoA): 152
- *  Column x_ at offset 0 has size 256 and padding 0
- *  Column y_ at offset 256 has size 256 and padding 0
- *  Column z_ at offset 512 has size 256 and padding 0
- *  Eigen value a_ at offset 768 has dimension (3 x 1) and per column size 256 and padding 0
- *  Eigen value b_ at offset 1536 has dimension (3 x 1) and per column size 256 and padding 0
- *  Eigen value r_ at offset 2304 has dimension (3 x 1) and per column size 256 and padding 0
- *  Column colour_ at offset 3072 has size 64 and padding 0
- *  Column value_ at offset 3136 has size 128 and padding 0
- *  Column py_ at offset 3264 has size 256 and padding 0
- *  Column count_ at offset 3520 has size 128 and padding 0
- *  Column anotherCount_ at offset 3648 has size 128 and padding 0
- *  Scalar description_ at offset 3776 has size 8 and padding 56
- *  Scalar someNumber_ at offset 3840 has size 4 and padding 60
- * Final offset = 3904 computeDataSize(...): 3904
- *
- */
-
 namespace cms::soa {
 
   /* Traits for the different column type scenarios */
@@ -105,7 +60,7 @@ namespace cms::soa {
 
 // clang-format off
 #define _DECLARE_SOA_STREAM_INFO_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                                \
-  cms::soa::detail::printColumn(_soa_impl_os, ConstView::BOOST_PP_CAT(NAME, Parameters_), BOOST_PP_STRINGIZE(NAME), _soa_impl_offset, elements_, alignment);
+  cms::soa::detail::PrintColumn<BOOST_PP_CAT(typename Metadata::ParametersTypeOf_, NAME)>{}(_soa_impl_os, BOOST_PP_STRINGIZE(NAME), _soa_impl_offset, elements_, alignment);
 // clang-format on
 
 #define _DECLARE_SOA_STREAM_INFO(R, DATA, TYPE_NAME)                                        \

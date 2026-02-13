@@ -837,47 +837,53 @@ namespace cms::soa::detail {
     return reinterpret_cast<intptr_t>(addr) % alignment;
   }
 
-  // Helper function for streaming column
+  template <typename ColumnType>
+  struct PrintColumn;
+
+  // Helper struct for streaming columns
   template <typename T>
-  void printColumn(std::ostream& soa_impl_os,
-                   const cms::soa::SoAConstParametersImpl<cms::soa::SoAColumnType::scalar, T>& column,
-                   std::string_view name,
-                   cms::soa::byte_size_type& soa_impl_offset,
-                   cms::soa::size_type,
-                   cms::soa::byte_size_type alignment) {
-    soa_impl_os << " Scalar " << name << " at offset " << soa_impl_offset << " has size " << sizeof(T)
-                << " and padding " << ((sizeof(T) - 1) / alignment + 1) * alignment - sizeof(T) << std::endl;
-    soa_impl_offset += ((sizeof(T) - 1) / alignment + 1) * alignment;
-  }
+  struct PrintColumn<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::scalar, T>> {
+    void operator()(std::ostream& soa_impl_os,
+                    std::string_view name,
+                    cms::soa::byte_size_type& soa_impl_offset,
+                    cms::soa::size_type,
+                    cms::soa::byte_size_type alignment) {
+      const auto size = sizeof(T);
+      soa_impl_os << " Scalar " << name << " at offset " << soa_impl_offset << " has size " << size << " and padding "
+                  << cms::soa::alignSize(size, alignment) - size << std::endl;
+      soa_impl_offset += cms::soa::alignSize(size, alignment);
+    }
+  };
 
   template <typename T>
-  void printColumn(std::ostream& soa_impl_os,
-                   const cms::soa::SoAConstParametersImpl<cms::soa::SoAColumnType::column, T>& column,
-                   std::string_view name,
-                   cms::soa::byte_size_type& soa_impl_offset,
-                   cms::soa::size_type elements,
-                   cms::soa::byte_size_type alignment) {
-    soa_impl_os << " Column " << name << " at offset " << soa_impl_offset << " has size " << sizeof(T) * elements
-                << " and padding " << cms::soa::alignSize(elements * sizeof(T), alignment) - (elements * sizeof(T))
-                << std::endl;
-    soa_impl_offset += cms::soa::alignSize(elements * sizeof(T), alignment);
-  }
+  struct PrintColumn<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::column, T>> {
+    void operator()(std::ostream& soa_impl_os,
+                    std::string_view name,
+                    cms::soa::byte_size_type& soa_impl_offset,
+                    cms::soa::size_type elements,
+                    cms::soa::byte_size_type alignment) {
+      const auto size = sizeof(T) * elements;
+      soa_impl_os << " Column " << name << " at offset " << soa_impl_offset << " has size " << size << " and padding "
+                  << cms::soa::alignSize(size, alignment) - size << std::endl;
+      soa_impl_offset += cms::soa::alignSize(size, alignment);
+    }
+  };
 
   template <typename T>
-  void printColumn(std::ostream& soa_impl_os,
-                   const cms::soa::SoAConstParametersImpl<cms::soa::SoAColumnType::eigen, T>& column,
-                   std::string_view name,
-                   cms::soa::byte_size_type& soa_impl_offset,
-                   cms::soa::size_type elements,
-                   cms::soa::byte_size_type alignment) {
-    soa_impl_os << " Eigen value " << name << " at offset " << soa_impl_offset << " has dimension "
-                << "(" << T::RowsAtCompileTime << " x " << T::ColsAtCompileTime << ")"
-                << " and per column size " << sizeof(T::Scalar) * elements << " and padding "
-                << cms::soa::alignSize(elements * sizeof(T::Scalar), alignment) - (elements * sizeof(T::Scalar))
-                << std::endl;
-    soa_impl_offset +=
-        cms::soa::alignSize(elements * sizeof(T::Scalar), alignment) * T::RowsAtCompileTime * T::ColsAtCompileTime;
-  }
+  struct PrintColumn<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::eigen, T>> {
+    void operator()(std::ostream& soa_impl_os,
+                    std::string_view name,
+                    cms::soa::byte_size_type& soa_impl_offset,
+                    cms::soa::size_type elements,
+                    cms::soa::byte_size_type alignment) {
+      const auto size = elements * sizeof(typename T::Scalar);
+      soa_impl_os << " Eigen value " << name << " at offset " << soa_impl_offset << " has dimension "
+                  << "(" << T::RowsAtCompileTime << " x " << T::ColsAtCompileTime << ")"
+                  << " and per column size " << size << " and padding " << cms::soa::alignSize(size, alignment) - size
+                  << std::endl;
+      soa_impl_offset += cms::soa::alignSize(size, alignment) * T::RowsAtCompileTime * T::ColsAtCompileTime;
+    }
+  };
 
   // Helper struct for computing the pitch of each column
   template <typename ColumnType>
