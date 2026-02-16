@@ -40,6 +40,33 @@ using GenericSoA = GenericSoATemplate<>;
 using GenericSoAView = GenericSoA::View;
 using GenericSoAConstView = GenericSoA::ConstView;
 
+void requireSameAddresses(auto genericView, auto positionView, auto pcaView) {
+  REQUIRE(genericView.metadata().addressOf_detType() == positionView.metadata().addressOf_detectorType());
+  REQUIRE(genericView.metadata().addressOf_xPos() == positionView.metadata().addressOf_x());
+  REQUIRE(genericView.metadata().addressOf_yPos() == positionView.metadata().addressOf_y());
+  REQUIRE(genericView.metadata().addressOf_zPos() == positionView.metadata().addressOf_z());
+  REQUIRE(genericView.metadata().addressOf_candidateDirection() == pcaView.metadata().addressOf_candidateDirection());
+}
+
+void requireDifferentAddresses(auto genericView, auto positionView, auto pcaView) {
+  REQUIRE(genericView.metadata().addressOf_detType() != positionView.metadata().addressOf_detectorType());
+  REQUIRE(genericView.metadata().addressOf_xPos() != positionView.metadata().addressOf_x());
+  REQUIRE(genericView.metadata().addressOf_yPos() != positionView.metadata().addressOf_y());
+  REQUIRE(genericView.metadata().addressOf_zPos() != positionView.metadata().addressOf_z());
+  REQUIRE(genericView.metadata().addressOf_candidateDirection() != pcaView.metadata().addressOf_candidateDirection());
+}
+
+void requireContentEqual(auto genericView, auto positionView, auto pcaView, std::size_t elems) {
+  REQUIRE(genericView.detType() == positionView.detectorType());
+  for (std::size_t i = 0; i < elems; ++i) {
+    REQUIRE_THAT(genericView[i].xPos(), WithinRel(positionView[i].x()));
+    REQUIRE_THAT(genericView[i].yPos(), WithinRel(positionView[i].y()));
+    REQUIRE_THAT(genericView[i].zPos(), WithinRel(positionView[i].z()));
+
+    REQUIRE(genericView[i].candidateDirection().isApprox(pcaView[i].candidateDirection()));
+  }
+}
+
 TEST_CASE("Deep copy from SoA Generic View") {
   // common number of elements for the SoAs
   const std::size_t elems = 100;
@@ -86,12 +113,7 @@ TEST_CASE("Deep copy from SoA Generic View") {
       posRecs.detectorType(), posRecs.x(), posRecs.y(), posRecs.z(), pcaRecs.candidateDirection());
 
   // Check for equality of memory addresses
-  REQUIRE(genericView.metadata().addressOf_detType() == positionCollectionView.metadata().addressOf_detectorType());
-  REQUIRE(genericView.metadata().addressOf_xPos() == positionCollectionView.metadata().addressOf_x());
-  REQUIRE(genericView.metadata().addressOf_yPos() == positionCollectionView.metadata().addressOf_y());
-  REQUIRE(genericView.metadata().addressOf_zPos() == positionCollectionView.metadata().addressOf_z());
-  REQUIRE(genericView.metadata().addressOf_candidateDirection() ==
-          pcaCollectionView.metadata().addressOf_candidateDirection());
+  requireSameAddresses(genericView, positionCollectionView, pcaCollectionView);
 
   // building the ConstView with runtime check for the size
   GenericSoAConstView genericConstView(constPosRecs.detectorType(),
@@ -101,13 +123,7 @@ TEST_CASE("Deep copy from SoA Generic View") {
                                        constPcaRecs.candidateDirection());
 
   // Check for equality of memory addresses
-  REQUIRE(genericConstView.metadata().addressOf_detType() ==
-          positionCollectionView.metadata().addressOf_detectorType());
-  REQUIRE(genericConstView.metadata().addressOf_xPos() == positionCollectionView.metadata().addressOf_x());
-  REQUIRE(genericConstView.metadata().addressOf_yPos() == positionCollectionView.metadata().addressOf_y());
-  REQUIRE(genericConstView.metadata().addressOf_zPos() == positionCollectionView.metadata().addressOf_z());
-  REQUIRE(genericConstView.metadata().addressOf_candidateDirection() ==
-          pcaCollectionView.metadata().addressOf_candidateDirection());
+  requireSameAddresses(genericConstView, positionCollectionView, pcaCollectionView);
 
   SECTION("Deep copy the View") {
     SECTION("Views with same size") {
@@ -118,22 +134,8 @@ TEST_CASE("Deep copy from SoA Generic View") {
       GenericSoAView genericCollectionView = genericCollection.view();
 
       // Check for inequality of memory addresses
-      REQUIRE(genericCollection.view().metadata().addressOf_detType() !=
-              positionCollectionView.metadata().addressOf_detectorType());
-      REQUIRE(genericCollection.view().metadata().addressOf_xPos() != positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericCollection.view().metadata().addressOf_yPos() != positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericCollection.view().metadata().addressOf_zPos() != positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericCollection.view().metadata().addressOf_candidateDirection() !=
-              pcaCollectionView.metadata().addressOf_candidateDirection());
-
-      REQUIRE(genericCollectionView.detType() == positionCollectionView.detectorType());
-
-      for (size_t i = 0; i < elems; i++) {
-        REQUIRE_THAT(genericCollectionView[i].xPos(), WithinRel(positionCollectionView[i].x()));
-        REQUIRE_THAT(genericCollectionView[i].yPos(), WithinRel(positionCollectionView[i].y()));
-        REQUIRE_THAT(genericCollectionView[i].zPos(), WithinRel(positionCollectionView[i].z()));
-        REQUIRE(genericCollectionView[i].candidateDirection().isApprox(pcaCollectionView[i].candidateDirection()));
-      }
+      requireDifferentAddresses(genericCollection.view(), positionCollectionView, pcaCollectionView);
+      requireContentEqual(genericCollectionView, positionCollectionView, pcaCollectionView, elems);
     }
 
     SECTION("Views with different size") {
@@ -144,27 +146,13 @@ TEST_CASE("Deep copy from SoA Generic View") {
       GenericSoAView genericCollectionView = genericCollection.view();
 
       // Check for inequality of memory addresses
-      REQUIRE(genericCollection.view().metadata().addressOf_detType() !=
-              positionCollectionView.metadata().addressOf_detectorType());
-      REQUIRE(genericCollection.view().metadata().addressOf_xPos() != positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericCollection.view().metadata().addressOf_yPos() != positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericCollection.view().metadata().addressOf_zPos() != positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericCollection.view().metadata().addressOf_candidateDirection() !=
-              pcaCollectionView.metadata().addressOf_candidateDirection());
+      requireDifferentAddresses(genericCollection.view(), positionCollectionView, pcaCollectionView);
 
       REQUIRE(genericView.metadata().size() == elems);
       REQUIRE(genericCollectionView.metadata().size() == smallerSize);
-
-      REQUIRE(genericCollectionView.detType() == positionCollectionView.detectorType());
-      for (size_t i = 0; i < smallerSize; i++) {
-        REQUIRE_THAT(genericCollectionView[i].xPos(), WithinRel(positionCollectionView[i].x()));
-        REQUIRE_THAT(genericCollectionView[i].yPos(), WithinRel(positionCollectionView[i].y()));
-        REQUIRE_THAT(genericCollectionView[i].zPos(), WithinRel(positionCollectionView[i].z()));
-        REQUIRE(genericCollectionView[i].candidateDirection().isApprox(pcaCollectionView[i].candidateDirection()));
-      }
+      requireContentEqual(genericCollectionView, positionCollectionView, pcaCollectionView, smallerSize);
     }
   }
-
   SECTION("Deep copy the ConstView") {
     SECTION("ConstViews with same size") {
       // PortableHostCollection that will host the aggregated columns
@@ -174,25 +162,8 @@ TEST_CASE("Deep copy from SoA Generic View") {
       GenericSoAConstView genericCollectionConstView = genericCollection.const_view();
 
       // Check for inequality of memory addresses
-      REQUIRE(genericCollection.const_view().metadata().addressOf_detType() !=
-              positionCollectionView.metadata().addressOf_detectorType());
-      REQUIRE(genericCollection.const_view().metadata().addressOf_xPos() !=
-              positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericCollection.const_view().metadata().addressOf_yPos() !=
-              positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericCollection.const_view().metadata().addressOf_zPos() !=
-              positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericCollection.const_view().metadata().addressOf_candidateDirection() !=
-              pcaCollectionView.metadata().addressOf_candidateDirection());
-
-      REQUIRE(genericCollectionConstView.detType() == positionCollectionView.detectorType());
-
-      for (size_t i = 0; i < elems; i++) {
-        REQUIRE_THAT(genericCollectionConstView[i].xPos(), WithinRel(positionCollectionView[i].x()));
-        REQUIRE_THAT(genericCollectionConstView[i].yPos(), WithinRel(positionCollectionView[i].y()));
-        REQUIRE_THAT(genericCollectionConstView[i].zPos(), WithinRel(positionCollectionView[i].z()));
-        REQUIRE(genericCollectionConstView[i].candidateDirection().isApprox(pcaCollectionView[i].candidateDirection()));
-      }
+      requireDifferentAddresses(genericCollection.const_view(), positionCollectionView, pcaCollectionView);
+      requireContentEqual(genericCollectionConstView, positionCollectionView, pcaCollectionView, elems);
     }
     SECTION("ConstViews with different size") {
       const auto smallerSize = elems / 2;
@@ -202,25 +173,8 @@ TEST_CASE("Deep copy from SoA Generic View") {
       GenericSoAConstView genericCollectionConstView = genericCollection.const_view();
 
       // Check for inequality of memory addresses
-      REQUIRE(genericCollection.const_view().metadata().addressOf_detType() !=
-              positionCollectionView.metadata().addressOf_detectorType());
-      REQUIRE(genericCollection.const_view().metadata().addressOf_xPos() !=
-              positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericCollection.const_view().metadata().addressOf_yPos() !=
-              positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericCollection.const_view().metadata().addressOf_zPos() !=
-              positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericCollection.const_view().metadata().addressOf_candidateDirection() !=
-              pcaCollectionView.metadata().addressOf_candidateDirection());
-
-      REQUIRE(genericCollectionConstView.detType() == positionCollectionView.detectorType());
-
-      for (size_t i = 0; i < smallerSize; i++) {
-        REQUIRE_THAT(genericCollectionConstView[i].xPos(), WithinRel(positionCollectionView[i].x()));
-        REQUIRE_THAT(genericCollectionConstView[i].yPos(), WithinRel(positionCollectionView[i].y()));
-        REQUIRE_THAT(genericCollectionConstView[i].zPos(), WithinRel(positionCollectionView[i].z()));
-        REQUIRE(genericCollectionConstView[i].candidateDirection().isApprox(pcaCollectionView[i].candidateDirection()));
-      }
+      requireDifferentAddresses(genericCollectionConstView, positionCollectionView, pcaCollectionView);
+      requireContentEqual(genericCollectionConstView, positionCollectionView, pcaCollectionView, smallerSize);
     }
   }
 }

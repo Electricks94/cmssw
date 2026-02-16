@@ -133,7 +133,11 @@ public:
   void deepCopy(TQueue& queue, ConstView const& view) {
     ConstDescriptor desc{view};
     Descriptor desc_{view_};
-    portablecollection::deepCopy<0>(queue, desc_, desc);
+    if (view.metadata().size() > size()) {
+      portablecollection::deepCopy<0>(queue, desc_, desc, size());
+    } else {
+      portablecollection::deepCopy<0>(queue, desc_, desc);
+    }
   }
 
   // Either Layout::size_type for normal layouts or std::array<Layout::size_type, N> for SoABlocks layouts

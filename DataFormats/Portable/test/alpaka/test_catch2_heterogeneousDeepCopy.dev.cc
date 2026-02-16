@@ -12,6 +12,7 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/memory.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
 
+using namespace Catch::Matchers;
 using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
 GENERATE_SOA_LAYOUT(SoAPositionTemplate,
@@ -36,6 +37,7 @@ using SoAPCAView = SoAPCA::View;
 using SoAPCAConstView = SoAPCA::ConstView;
 
 GENERATE_SOA_LAYOUT(GenericSoATemplate,
+                    SOA_SCALAR(int, detType),
                     SOA_COLUMN(float, x),
                     SOA_COLUMN(float, y),
                     SOA_COLUMN(float, z),
@@ -50,13 +52,14 @@ struct FillSoA {
   template <alpaka::concepts::Acc TAcc, typename PositionView, typename PCAView>
   ALPAKA_FN_ACC void operator()(TAcc const& acc, PositionView positionView, PCAView pcaView) const {
     constexpr float interval = 0.01f;
+    const auto elems = positionView.metadata().size();
     if (cms::alpakatools::once_per_grid(acc))
       positionView.detectorType() = 1;
 
-    for (auto local_idx : cms::alpakatools::uniform_elements(acc, positionView.metadata().size())) {
-      positionView[local_idx].x() = static_cast<float>(local_idx);
-      positionView[local_idx].y() = static_cast<float>(local_idx) * 2.0f;
-      positionView[local_idx].z() = static_cast<float>(local_idx) * 3.0f;
+    for (auto local_idx : cms::alpakatools::uniform_elements(acc, elems)) {
+      positionView[local_idx].x() = 0.0f * static_cast<float>(elems) + static_cast<float>(local_idx);
+      positionView[local_idx].y() = 1.0f * static_cast<float>(elems) + static_cast<float>(local_idx);
+      positionView[local_idx].z() = 2.0f * static_cast<float>(elems) + static_cast<float>(local_idx);
 
       pcaView[local_idx].eigenvector_1() = positionView[local_idx].x() / interval;
       pcaView[local_idx].eigenvector_2() = positionView[local_idx].y() / interval;
@@ -68,14 +71,53 @@ struct FillSoA {
   }
 };
 
+void requireSameAddresses(auto genericView, auto positionView, auto pcaView) {
+  REQUIRE(genericView.metadata().addressOf_detType() == positionView.metadata().addressOf_detectorType());
+  REQUIRE(genericView.metadata().addressOf_x() == positionView.metadata().addressOf_x());
+  REQUIRE(genericView.metadata().addressOf_y() == positionView.metadata().addressOf_y());
+  REQUIRE(genericView.metadata().addressOf_z() == positionView.metadata().addressOf_z());
+  REQUIRE(genericView.metadata().addressOf_candidateDirection() == pcaView.metadata().addressOf_candidateDirection());
+}
+
+void requireDifferentAddresses(auto genericView, auto positionView, auto pcaView) {
+  REQUIRE(genericView.metadata().addressOf_detType() != positionView.metadata().addressOf_detectorType());
+  REQUIRE(genericView.metadata().addressOf_x() != positionView.metadata().addressOf_x());
+  REQUIRE(genericView.metadata().addressOf_y() != positionView.metadata().addressOf_y());
+  REQUIRE(genericView.metadata().addressOf_z() != positionView.metadata().addressOf_z());
+  REQUIRE(genericView.metadata().addressOf_candidateDirection() != pcaView.metadata().addressOf_candidateDirection());
+}
+
+void requireContentEqual(auto& queue, auto& genericCollection, auto& positionCollection, auto& pcaCollection) {
+  PortableHostCollection<GenericSoA> genericHostCollection(queue, genericCollection.size());
+  PortableHostCollection<SoAPosition> positionHostCollection(queue, positionCollection.size());
+  PortableHostCollection<SoAPCA> pcaHostCollection(queue, pcaCollection.size());
+
+  alpaka::memcpy(queue, genericHostCollection.buffer(), genericCollection.buffer());
+  alpaka::memcpy(queue, positionHostCollection.buffer(), positionCollection.buffer());
+  alpaka::memcpy(queue, pcaHostCollection.buffer(), pcaCollection.buffer());
+
+  alpaka::wait(queue);
+
+  const GenericSoAConstView& genericView = genericHostCollection.const_view();
+  const SoAPositionConstView& positionView = positionHostCollection.const_view();
+  const SoAPCAConstView& pcaView = pcaHostCollection.const_view();
+
+  REQUIRE(genericView.detType() == positionView.detectorType());
+  for (auto i = 0; i < genericView.metadata().size(); ++i) {
+    REQUIRE_THAT(genericView[i].x(), WithinRel(positionView[i].x()));
+    REQUIRE_THAT(genericView[i].y(), WithinRel(positionView[i].y()));
+    REQUIRE_THAT(genericView[i].z(), WithinRel(positionView[i].z()));
+
+    REQUIRE(genericView[i].candidateDirection().isApprox(pcaView[i].candidateDirection()));
+  }
+}
+
 TEST_CASE("Deep copy from SoA Generic View") {
   auto const& devices = cms::alpakatools::devices<Platform>();
   if (devices.empty()) {
     FAIL("No devices available for the " EDM_STRINGIZE(ALPAKA_ACCELERATOR_NAMESPACE) " backend, "
         "the test will be skipped.");
   }
-
-  auto devHost = alpaka::getDevByIdx(alpaka::PlatformCpu{}, 0u);
 
   for (auto const& device : cms::alpakatools::devices<Platform>()) {
     std::cout << "Running on " << alpaka::getName(device) << std::endl;
@@ -112,25 +154,18 @@ TEST_CASE("Deep copy from SoA Generic View") {
       const auto pcaRecs = pcaCollectionView.records();
 
       // building the View with runtime check for the size
-      GenericSoAView genericView(posRecs.x(), posRecs.y(), posRecs.z(), pcaRecs.candidateDirection());
+      GenericSoAView genericView(
+          posRecs.detectorType(), posRecs.x(), posRecs.y(), posRecs.z(), pcaRecs.candidateDirection());
 
       // Check for equality of memory addresses
-      REQUIRE(genericView.metadata().addressOf_x() == positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericView.metadata().addressOf_y() == positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericView.metadata().addressOf_z() == positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericView.metadata().addressOf_candidateDirection() ==
-              pcaCollectionView.metadata().addressOf_candidateDirection());
+      requireSameAddresses(genericView, positionCollectionView, pcaCollectionView);
 
       // PortableCollection that will host the aggregated columns
       PortableCollection<Device, GenericSoA> genericCollection(queue, elems);
       genericCollection.deepCopy(queue, genericView);
 
-      // Check for inequality of memory addresses[`View` section](../../DataFormats/SoATemplate/README.md#view)
-      REQUIRE(genericCollection.view().metadata().addressOf_x() != positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericCollection.view().metadata().addressOf_y() != positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericCollection.view().metadata().addressOf_z() != positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericCollection.view().metadata().addressOf_candidateDirection() !=
-              pcaCollectionView.metadata().addressOf_candidateDirection());
+      // Check for inequality of memory addresses
+      requireContentEqual(queue, genericCollection, positionCollection, pcaCollection);
     }
 
     SECTION("Deep copy the ConstView host to host and device to device") {
@@ -139,52 +174,19 @@ TEST_CASE("Deep copy from SoA Generic View") {
       const auto pcaRecs = pcaCollectionConstView.records();
 
       // building the View with runtime check for the size
-      GenericSoAConstView genericConstView(posRecs.x(), posRecs.y(), posRecs.z(), pcaRecs.candidateDirection());
+      GenericSoAConstView genericConstView(
+          posRecs.detectorType(), posRecs.x(), posRecs.y(), posRecs.z(), pcaRecs.candidateDirection());
 
       // Check for equality of memory addresses
-      REQUIRE(genericConstView.metadata().addressOf_x() == positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericConstView.metadata().addressOf_y() == positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericConstView.metadata().addressOf_z() == positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericConstView.metadata().addressOf_candidateDirection() ==
-              pcaCollectionView.metadata().addressOf_candidateDirection());
+      requireSameAddresses(genericConstView, positionCollectionView, pcaCollectionView);
 
       // PortableCollection that will host the aggregated columns
       PortableCollection<Device, GenericSoA> genericCollection(queue, elems);
       genericCollection.deepCopy(queue, genericConstView);
 
       // Check for inequality of memory addresses
-      REQUIRE(genericCollection.view().metadata().addressOf_x() != positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericCollection.view().metadata().addressOf_y() != positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericCollection.view().metadata().addressOf_z() != positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericCollection.view().metadata().addressOf_candidateDirection() !=
-              pcaCollectionView.metadata().addressOf_candidateDirection());
-
-      // Check for correctness of the copy
-      PortableHostCollection<GenericSoA> genericHostCollection(queue, elems);
-      PortableHostCollection<SoAPosition> positionHostCollection(queue, elems);
-      PortableHostCollection<SoAPCA> pcaHostCollection(queue, elems);
-
-      alpaka::memcpy(queue, genericHostCollection.buffer(), genericCollection.buffer());
-      alpaka::memcpy(queue, positionHostCollection.buffer(), positionCollection.buffer());
-      alpaka::memcpy(queue, pcaHostCollection.buffer(), pcaCollection.buffer());
-
-      alpaka::wait(queue);
-
-      const GenericSoAConstView& genericViewHostCollection = genericHostCollection.const_view();
-      const SoAPositionConstView& positionViewHostCollection = positionHostCollection.const_view();
-      const SoAPCAConstView& pcaViewHostCollection = pcaHostCollection.const_view();
-
-      for (size_t i = 0; i < elems; i++) {
-        REQUIRE(genericViewHostCollection[i].x() == positionViewHostCollection[i].x());
-        REQUIRE(genericViewHostCollection[i].y() == positionViewHostCollection[i].y());
-        REQUIRE(genericViewHostCollection[i].z() == positionViewHostCollection[i].z());
-        REQUIRE(genericViewHostCollection[i].candidateDirection()(0) ==
-                pcaViewHostCollection[i].candidateDirection()(0));
-        REQUIRE(genericViewHostCollection[i].candidateDirection()(1) ==
-                pcaViewHostCollection[i].candidateDirection()(1));
-        REQUIRE(genericViewHostCollection[i].candidateDirection()(2) ==
-                pcaViewHostCollection[i].candidateDirection()(2));
-      }
+      requireDifferentAddresses(genericCollection.view(), positionCollectionView, pcaCollectionView);
+      requireContentEqual(queue, genericCollection, positionCollection, pcaCollection);
     }
 
     SECTION("Deep copy the ConstView device to host") {
@@ -193,47 +195,19 @@ TEST_CASE("Deep copy from SoA Generic View") {
       const auto pcaRecs = pcaCollectionConstView.records();
 
       // building the View with runtime check for the size
-      GenericSoAConstView genericConstView(posRecs.x(), posRecs.y(), posRecs.z(), pcaRecs.candidateDirection());
+      GenericSoAConstView genericConstView(
+          posRecs.detectorType(), posRecs.x(), posRecs.y(), posRecs.z(), pcaRecs.candidateDirection());
 
       // Check for equality of memory addresses
-      REQUIRE(genericConstView.metadata().addressOf_x() == positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericConstView.metadata().addressOf_y() == positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericConstView.metadata().addressOf_z() == positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericConstView.metadata().addressOf_candidateDirection() ==
-              pcaCollectionView.metadata().addressOf_candidateDirection());
+      requireSameAddresses(genericConstView, positionCollectionView, pcaCollectionView);
 
       // PortableCollection that will host the aggregated columns
       PortableHostCollection<GenericSoA> genericCollection(queue, elems);
       genericCollection.deepCopy(queue, genericConstView);
 
       // Check for inequality of memory addresses
-      REQUIRE(genericCollection.view().metadata().addressOf_x() != positionCollectionView.metadata().addressOf_x());
-      REQUIRE(genericCollection.view().metadata().addressOf_y() != positionCollectionView.metadata().addressOf_y());
-      REQUIRE(genericCollection.view().metadata().addressOf_z() != positionCollectionView.metadata().addressOf_z());
-      REQUIRE(genericCollection.view().metadata().addressOf_candidateDirection() !=
-              pcaCollectionView.metadata().addressOf_candidateDirection());
-
-      // Check for correctness of the copy
-      PortableHostCollection<SoAPosition> positionHostCollection(queue, elems);
-      PortableHostCollection<SoAPCA> pcaHostCollection(queue, elems);
-
-      alpaka::memcpy(queue, positionHostCollection.buffer(), positionCollection.buffer());
-      alpaka::memcpy(queue, pcaHostCollection.buffer(), pcaCollection.buffer());
-
-      alpaka::wait(queue);
-
-      const GenericSoAConstView& genericViewCollection = genericCollection.const_view();
-      const SoAPositionConstView& positionViewHostCollection = positionHostCollection.const_view();
-      const SoAPCAConstView& pcaViewHostCollection = pcaHostCollection.const_view();
-
-      for (size_t i = 0; i < elems; i++) {
-        REQUIRE(genericViewCollection[i].x() == positionViewHostCollection[i].x());
-        REQUIRE(genericViewCollection[i].y() == positionViewHostCollection[i].y());
-        REQUIRE(genericViewCollection[i].z() == positionViewHostCollection[i].z());
-        REQUIRE(genericViewCollection[i].candidateDirection()(0) == pcaViewHostCollection[i].candidateDirection()(0));
-        REQUIRE(genericViewCollection[i].candidateDirection()(1) == pcaViewHostCollection[i].candidateDirection()(1));
-        REQUIRE(genericViewCollection[i].candidateDirection()(2) == pcaViewHostCollection[i].candidateDirection()(2));
-      }
+      requireDifferentAddresses(genericCollection.view(), positionCollectionView, pcaCollectionView);
+      requireContentEqual(queue, genericCollection, positionCollection, pcaCollection);
     }
 
     SECTION("Deep copy the ConstView host to device") {
@@ -251,46 +225,19 @@ TEST_CASE("Deep copy from SoA Generic View") {
       const auto pcaRecs = pcaViewHostCollection.records();
 
       // building the View with runtime check for the size
-      GenericSoAConstView genericConstView(posRecs.x(), posRecs.y(), posRecs.z(), pcaRecs.candidateDirection());
+      GenericSoAConstView genericConstView(
+          posRecs.detectorType(), posRecs.x(), posRecs.y(), posRecs.z(), pcaRecs.candidateDirection());
 
       // Check for equality of memory addresses
-      REQUIRE(genericConstView.metadata().addressOf_x() == positionViewHostCollection.metadata().addressOf_x());
-      REQUIRE(genericConstView.metadata().addressOf_y() == positionViewHostCollection.metadata().addressOf_y());
-      REQUIRE(genericConstView.metadata().addressOf_z() == positionViewHostCollection.metadata().addressOf_z());
-      REQUIRE(genericConstView.metadata().addressOf_candidateDirection() ==
-              pcaViewHostCollection.metadata().addressOf_candidateDirection());
+      requireSameAddresses(genericConstView, positionViewHostCollection, pcaViewHostCollection);
 
       // PortableCollection that will host the aggregated columns
       PortableCollection<Device, GenericSoA> genericCollection(queue, elems);
       genericCollection.deepCopy(queue, genericConstView);
 
       // Check for inequality of memory addresses
-      REQUIRE(genericCollection.view().metadata().addressOf_x() != positionViewHostCollection.metadata().addressOf_x());
-      REQUIRE(genericCollection.view().metadata().addressOf_y() != positionViewHostCollection.metadata().addressOf_y());
-      REQUIRE(genericCollection.view().metadata().addressOf_z() != positionViewHostCollection.metadata().addressOf_z());
-      REQUIRE(genericCollection.view().metadata().addressOf_candidateDirection() !=
-              pcaViewHostCollection.metadata().addressOf_candidateDirection());
-
-      // Check for correctness of the copy
-      PortableHostCollection<GenericSoA> genericHostCollection(queue, elems);
-
-      alpaka::memcpy(queue, genericHostCollection.buffer(), genericCollection.buffer());
-
-      alpaka::wait(queue);
-
-      const GenericSoAConstView& genericViewHostCollection = genericHostCollection.const_view();
-
-      for (size_t i = 0; i < elems; i++) {
-        REQUIRE(genericViewHostCollection[i].x() == positionViewHostCollection[i].x());
-        REQUIRE(genericViewHostCollection[i].y() == positionViewHostCollection[i].y());
-        REQUIRE(genericViewHostCollection[i].z() == positionViewHostCollection[i].z());
-        REQUIRE(genericViewHostCollection[i].candidateDirection()(0) ==
-                pcaViewHostCollection[i].candidateDirection()(0));
-        REQUIRE(genericViewHostCollection[i].candidateDirection()(1) ==
-                pcaViewHostCollection[i].candidateDirection()(1));
-        REQUIRE(genericViewHostCollection[i].candidateDirection()(2) ==
-                pcaViewHostCollection[i].candidateDirection()(2));
-      }
+      requireDifferentAddresses(genericCollection.view(), positionViewHostCollection, pcaViewHostCollection);
+      requireContentEqual(queue, genericCollection, positionHostCollection, pcaHostCollection);
     }
   }
 }

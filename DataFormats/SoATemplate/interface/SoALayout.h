@@ -110,7 +110,7 @@ namespace cms::soa {
 	  return parent_.metadata().BOOST_PP_CAT(parametersOf_, NAME)().addr_;                                           	   \
   } 																												                                                           \
   SOA_HOST_DEVICE SOA_INLINE byte_size_type BOOST_PP_CAT(NAME, Pitch()) const {                                        \
-	  return cms::soa::detail::ComputePitch<BOOST_PP_CAT(ParametersTypeOf_, NAME)>{}(					                             \
+	  return cms::soa::detail::ComputePitch<BOOST_PP_CAT(ParametersTypeOf_, NAME)>{}(					                           \
 						parent_.elements_, ParentClass::alignment);													                                       \
   }
 // clang-format on
@@ -1721,6 +1721,11 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                                     _ITERATE_ON_ALL_COMMA(_DECLARE_CONST_DESCRIPTOR_SPANS, ~, __VA_ARGS__)>>::value;   \
       static constexpr std::array<cms::soa::SoAColumnType, num_cols> columnTypes = {{                                  \
         _ITERATE_ON_ALL_COMMA(_DECLARE_COLUMN_TYPE, ~, __VA_ARGS__)}};                                                 \
+      template <std::size_t I>                                                                                         \
+      static constexpr bool isEigenColumn() {                                                                          \
+        static_assert(I < num_cols, "Column index out of bounds");                                                     \
+        return columnTypes[I] == SoAColumnType::eigen;                                                                 \
+      }                                                                                                                \
     };                                                                                                                 \
                                                                                                                        \
     /* Helper struct to loop over the columns without using name for mutable data */                                   \
@@ -1737,6 +1742,11 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                                     _ITERATE_ON_ALL_COMMA(_DECLARE_DESCRIPTOR_SPANS, ~, __VA_ARGS__)>>::value;         \
       static constexpr std::array<cms::soa::SoAColumnType, num_cols> columnTypes = {{                                  \
         _ITERATE_ON_ALL_COMMA(_DECLARE_COLUMN_TYPE, ~, __VA_ARGS__)}};                                                 \
+      template <std::size_t I>                                                                                         \
+      static constexpr bool isEigenColumn() {                                                                          \
+        static_assert(I < num_cols, "Column index out of bounds");                                                     \
+        return columnTypes[I] == SoAColumnType::eigen;                                                                 \
+      }                                                                                                                \
     };                                                                                                                 \
                                                                                                                        \
     /* Trivial constuctor */                                                                                           \

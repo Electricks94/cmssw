@@ -29,10 +29,27 @@ namespace portablecollection {
   template <int I, typename TQueue, typename Descriptor, typename ConstDescriptor>
   void deepCopy(TQueue& queue, Descriptor& dest, ConstDescriptor const& src, const int size) {
     if constexpr (I < ConstDescriptor::num_cols) {
-      alpaka::memcpy(queue,
-                     alpaka::createView(alpaka::getDev(queue), std::get<I>(dest.buff).data(), size),
-                     alpaka::createView(alpaka::getDev(queue), std::get<I>(src.buff).data(), size));
-      deepCopy<I + 1>(queue, dest, src, size);
+      if constexpr (ConstDescriptor::template isEigenColumn<I>()) {
+        using EigenType = typename std::tuple_element_t<I, decltype(dest.parameterTypes)>::ValueType;
+
+        for (int i = 0; i < EigenType::RowsAtCompileTime * EigenType::ColsAtCompileTime; ++i) {
+          const auto offsetDst = i * std::get<I>(dest.parameterTypes).stride();
+          const auto offsetSrc = i * std::get<I>(src.parameterTypes).stride();
+
+          alpaka::memcpy(
+              queue,
+              alpaka::createView(alpaka::getDev(queue), std::get<I>(dest.buff).data() + offsetDst, size),
+              alpaka::createView(alpaka::getDev(queue), std::get<I>(src.buff).data() + offsetSrc, size));
+        }
+
+        deepCopy<I + 1>(queue, dest, src, size);
+      } else {
+        alpaka::memcpy(
+            queue,
+            alpaka::createView(alpaka::getDev(queue), std::get<I>(dest.buff).data(), std::get<I>(dest.buff).size()),
+            alpaka::createView(alpaka::getDev(queue), std::get<I>(src.buff).data(), std::get<I>(dest.buff).size()));
+        deepCopy<I + 1>(queue, dest, src, size);
+      }
     }
   }
 
