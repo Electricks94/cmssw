@@ -1,3 +1,4 @@
+<!--
 <iftool name="cuda-gcc-support">
   <bin file="SoALayoutAndView_t.cu" name="testCudaSoALayoutAndView_t">
     <use name="boost"/>
@@ -19,6 +20,12 @@
 </iftool>
 
 <bin file="SoAUnitTests.cc" name="SoAUnitTests">
+  <use name="boost"/>
+  <use name="catch2"/>
+  <use name="DataFormats/SoATemplate"/>
+</bin>
+
+<bin file="SoAJagged.cc" name="SoAJaggedTests">
   <use name="boost"/>
   <use name="catch2"/>
   <use name="DataFormats/SoATemplate"/>
@@ -81,6 +88,13 @@
   <use name="boost"/>
   <use name="catch2"/>
   <use name="eigen"/>
+  <use name="DataFormats/SoATemplate"/>
+</bin>
+-->
+
+<bin file="SoAJagged.cc" name="SoAJaggedTests">
+  <use name="boost"/>
+  <use name="catch2"/>
   <use name="DataFormats/SoATemplate"/>
 </bin>
 

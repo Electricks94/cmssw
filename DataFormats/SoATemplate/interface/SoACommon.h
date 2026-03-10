@@ -56,14 +56,15 @@
 #define _VALUE_TYPE_SCALAR 0
 #define _VALUE_TYPE_COLUMN 1
 #define _VALUE_TYPE_EIGEN_COLUMN 2
-#define _VALUE_TYPE_METHOD 3
-#define _VALUE_TYPE_CONST_METHOD 4
-#define _VALUE_TYPE_BLOCK 5
-#define _VALUE_TYPE_VIEW_METHOD 6
-#define _VALUE_TYPE_CONST_VIEW_METHOD 7
+#define _VALUE_TYPE_JAGGED_COLUMN 3
+#define _VALUE_TYPE_METHOD 4
+#define _VALUE_TYPE_CONST_METHOD 5
+#define _VALUE_TYPE_BLOCK 6
+#define _VALUE_TYPE_VIEW_METHOD 7
+#define _VALUE_TYPE_CONST_VIEW_METHOD 8
 
 /* declare the value of last valid column */
-#define _VALUE_LAST_COLUMN_TYPE _VALUE_TYPE_EIGEN_COLUMN
+#define _VALUE_LAST_COLUMN_TYPE _VALUE_TYPE_JAGGED_COLUMN
 
 /* declare a macro useful for passing a valid but not used value*/
 #define _VALUE_TYPE_UNUSED BOOST_PP_LIMIT_MAG
@@ -83,7 +84,8 @@ namespace cms::soa {
   enum class SoAColumnType {
     scalar = _VALUE_TYPE_SCALAR,
     column = _VALUE_TYPE_COLUMN,
-    eigen = _VALUE_TYPE_EIGEN_COLUMN
+    eigen = _VALUE_TYPE_EIGEN_COLUMN,
+    jagged = _VALUE_TYPE_JAGGED_COLUMN
   };
 
   namespace RestrictQualify {
@@ -191,6 +193,34 @@ namespace cms::soa {
     byte_size_type stride_ = 0;
   };
 
+  // Templated const parameter specialisation for jagged columns
+  template <typename T>
+  struct SoAConstParametersImpl<SoAColumnType::jagged, T> {
+    static constexpr SoAColumnType columnType = SoAColumnType::jagged;
+
+    using ValueType = T;
+    using ScalarType = T;
+
+    // default constructor
+    SoAConstParametersImpl() = default;
+
+    // constructor from individual address, stride and size
+    SOA_HOST_DEVICE SOA_INLINE constexpr SoAConstParametersImpl(ScalarType const* addr, byte_size_type size)
+        : addr_(addr), size_(size) {}
+
+    // constructor from a non-const parameter set
+    SOA_HOST_DEVICE SOA_INLINE constexpr SoAConstParametersImpl(SoAParametersImpl<columnType, ValueType> const& o)
+        : addr_{o.addr_}, size_{o.size_} {}
+
+    SOA_HOST_DEVICE SOA_INLINE ScalarType const* data() const { return addr_; }
+    SOA_HOST_DEVICE SOA_INLINE byte_size_type size() const { return size_; }
+
+  public:
+    // address, stride and size
+    ScalarType const* addr_ = nullptr;
+    byte_size_type size_ = 0;
+  };
+
   // Matryoshka template to avoid commas inside macros
   template <SoAColumnType COLUMN_TYPE>
   struct SoAConstParameters_ColumnType {
@@ -249,6 +279,33 @@ namespace cms::soa {
     byte_size_type stride_ = 0;
   };
 
+  // Templated parameter specialisation for Jagged columns
+  template <typename T>
+  struct SoAParametersImpl<SoAColumnType::jagged, T> {
+    static constexpr SoAColumnType columnType = SoAColumnType::jagged;
+
+    using ValueType = T;
+    using ScalarType = T;
+
+    using ConstType = SoAConstParametersImpl<columnType, ValueType>;
+    friend ConstType;
+
+    // default constructor
+    SoAParametersImpl() = default;
+
+    // constructor from individual address, stride and size
+    SOA_HOST_DEVICE SOA_INLINE constexpr SoAParametersImpl(ScalarType* addr, byte_size_type size)
+        : addr_(addr), size_(size) {}
+
+    SOA_HOST_DEVICE SOA_INLINE ScalarType* data() const { return addr_; }
+    SOA_HOST_DEVICE SOA_INLINE byte_size_type size() const { return size_; }
+
+  public:
+    // address, stride and size
+    ScalarType* addr_ = nullptr;
+    byte_size_type size_ = 0;
+  };
+
   // Matryoshka template to avoid commas inside macros
   template <SoAColumnType COLUMN_TYPE>
   struct SoAParameters_ColumnType {
@@ -284,6 +341,12 @@ namespace cms::soa {
   SOA_HOST_DEVICE SOA_INLINE constexpr SoAParametersImpl<SoAColumnType::eigen, T> const_cast_SoAParametersImpl(
       SoAConstParametersImpl<SoAColumnType::eigen, T> const& o) {
     return SoAParametersImpl<SoAColumnType::eigen, T>{non_const_ptr(o.addr_), o.stride_};
+  }
+
+  template <typename T>
+  SOA_HOST_DEVICE SOA_INLINE constexpr SoAParametersImpl<SoAColumnType::jagged, T> const_cast_SoAParametersImpl(
+      SoAConstParametersImpl<SoAColumnType::jagged, T> const& o) {
+    return SoAParametersImpl<SoAColumnType::jagged, T>{non_const_ptr(o.addr_), o.size_};
   }
 
   // Helper template managing the value at index idx within a column.
@@ -600,6 +663,7 @@ namespace cms::soa {
 #define SOA_SCALAR(TYPE, NAME) (_VALUE_TYPE_SCALAR, TYPE, NAME, ~)
 #define SOA_COLUMN(TYPE, NAME) (_VALUE_TYPE_COLUMN, TYPE, NAME, ~)
 #define SOA_EIGEN_COLUMN(TYPE, NAME) (_VALUE_TYPE_EIGEN_COLUMN, TYPE, NAME, ~)
+#define SOA_JAGGED_COLUMN(TYPE, NAME) (_VALUE_TYPE_JAGGED_COLUMN, TYPE, NAME, ~)
 #define SOA_ELEMENT_METHODS(...) (_VALUE_TYPE_METHOD, _, _, (__VA_ARGS__))
 #define SOA_CONST_ELEMENT_METHODS(...) (_VALUE_TYPE_CONST_METHOD, _, _, (__VA_ARGS__))
 #define SOA_BLOCK(NAME, LAYOUT_NAME) (_VALUE_TYPE_BLOCK, NAME, LAYOUT_NAME)
@@ -654,14 +718,16 @@ namespace cms::soa {
 #define _ITERATE_ON_ALL(MACRO, DATA, ...) BOOST_PP_SEQ_FOR_EACH(MACRO, DATA, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 
 /* Switch on macros depending on scalar / column type */
-#define _SWITCH_ON_TYPE(VALUE_TYPE, IF_SCALAR, IF_COLUMN, IF_EIGEN_COLUMN) \
-  BOOST_PP_IF(                                                             \
-      BOOST_PP_EQUAL(VALUE_TYPE, _VALUE_TYPE_SCALAR),                      \
-      IF_SCALAR,                                                           \
-      BOOST_PP_IF(                                                         \
-          BOOST_PP_EQUAL(VALUE_TYPE, _VALUE_TYPE_COLUMN),                  \
-          IF_COLUMN,                                                       \
-          BOOST_PP_IF(BOOST_PP_EQUAL(VALUE_TYPE, _VALUE_TYPE_EIGEN_COLUMN), IF_EIGEN_COLUMN, BOOST_PP_EMPTY())))
+#define _SWITCH_ON_TYPE(VALUE_TYPE, IF_SCALAR, IF_COLUMN, IF_EIGEN_COLUMN, IF_JAGGED_COLUMN) \
+  BOOST_PP_IF(                                                                               \
+      BOOST_PP_EQUAL(VALUE_TYPE, _VALUE_TYPE_SCALAR),                                        \
+      IF_SCALAR,                                                                             \
+      BOOST_PP_IF(BOOST_PP_EQUAL(VALUE_TYPE, _VALUE_TYPE_COLUMN),                            \
+        IF_COLUMN,                                                                           \
+        BOOST_PP_IF(BOOST_PP_EQUAL(VALUE_TYPE, _VALUE_TYPE_EIGEN_COLUMN),                    \
+          IF_EIGEN_COLUMN,                                                                   \
+          BOOST_PP_IF(BOOST_PP_EQUAL(VALUE_TYPE, _VALUE_TYPE_JAGGED_COLUMN),                 \
+            IF_JAGGED_COLUMN, BOOST_PP_EMPTY()))))
 
 namespace cms::soa {
 
@@ -887,6 +953,21 @@ namespace cms::soa::detail {
     }
   };
 
+  // TODO: align with normal column type
+  template <typename T>
+  struct PrintColumn<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::jagged, T>> {
+    void operator()(std::ostream& soa_impl_os,
+                    std::string_view name,
+                    cms::soa::byte_size_type& soa_impl_offset,
+                    cms::soa::size_type elements,
+                    cms::soa::byte_size_type alignment) {
+      const auto size = sizeof(T) * elements;
+      soa_impl_os << " Jagged Column " << name << " at offset " << soa_impl_offset << " has size " << size << " and padding "
+                  << cms::soa::alignSize(size, alignment) - size << std::endl;
+      soa_impl_offset += cms::soa::alignSize(size, alignment);
+    }
+  };
+
   // Helper struct for computing the pitch of each column
   template <typename ColumnType>
   struct ComputePitch;
@@ -916,6 +997,15 @@ namespace cms::soa::detail {
     }
   };
 
+  // TODO: align with normal column type
+  template <typename T>
+  struct ComputePitch<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::jagged, T>> {
+    SOA_HOST_DEVICE constexpr cms::soa::byte_size_type operator()(cms::soa::size_type elements,
+                                                                  cms::soa::byte_size_type alignment) const {
+      return cms::soa::alignSize(elements * sizeof(T), alignment);
+    }
+  };
+
   // Helper type trait for obtaining a span type for a column
   template <typename ColumnType>
   struct GetSpanType;
@@ -935,6 +1025,12 @@ namespace cms::soa::detail {
     using type = std::span<typename T::Scalar>;
   };
 
+  // TODO: align with normal column type
+  template <typename T>
+  struct GetSpanType<cms::soa::SoAConstParametersImpl<cms::soa::SoAColumnType::jagged, T>> {
+    using type = std::span<T>;
+  };
+
   template <typename T>
   struct GetSpanType<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::scalar, T>> {
     using type = std::span<T, 1>;
@@ -948,6 +1044,12 @@ namespace cms::soa::detail {
   template <typename T>
   struct GetSpanType<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::eigen, T>> {
     using type = std::span<typename T::Scalar>;
+  };
+
+  // TODO: align with normal column type
+  template <typename T>
+  struct GetSpanType<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::jagged, T>> {
+    using type = std::span<T>;
   };
 
   template <typename ColumnType>
@@ -972,6 +1074,13 @@ namespace cms::soa::detail {
     using type = std::span<std::add_const_t<typename T::Scalar>>;
   };
 
+  // TODO: align with normal column type
+  template <typename T>
+  struct GetConstSpanType<cms::soa::SoAConstParametersImpl<cms::soa::SoAColumnType::jagged, T>> {
+    using type = std::span<std::add_const_t<T>>;
+  };
+
+
   template <typename T>
   struct GetConstSpanType<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::scalar, T>> {
     using type = std::span<std::add_const_t<T>, 1>;
@@ -985,6 +1094,12 @@ namespace cms::soa::detail {
   template <typename T>
   struct GetConstSpanType<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::eigen, T>> {
     using type = std::span<std::add_const_t<typename T::Scalar>>;
+  };
+
+  //TODO: align with normal column type
+  template <typename T>
+  struct GetConstSpanType<cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::jagged, T>> {
+    using type = std::span<std::add_const_t<T>>;
   };
 
   template <typename ColumnType>
@@ -1014,6 +1129,14 @@ namespace cms::soa::detail {
                          T::ColsAtCompileTime / sizeof(typename T::Scalar));
   }
 
+  // TODO: align with normal column type
+  template <typename T>
+  auto getSpanToColumn(const cms::soa::SoAParametersImpl<cms::soa::SoAColumnType::jagged, T>& column,
+                       cms::soa::size_type elements,
+                       cms::soa::byte_size_type alignment) {
+    return std::span(column.addr_, elements);
+  }
+
   template <typename T>
   auto getSpanToColumn(const cms::soa::SoAConstParametersImpl<cms::soa::SoAColumnType::scalar, T>& column,
                        cms::soa::size_type elements,
@@ -1035,6 +1158,14 @@ namespace cms::soa::detail {
     return std::span(column.addr_,
                      cms::soa::alignSize(elements * sizeof(typename T::Scalar), alignment) * T::RowsAtCompileTime *
                          T::ColsAtCompileTime / sizeof(typename T::Scalar));
+  }
+
+  // TODO: align with normal column type
+  template <typename T>
+  auto getSpanToColumn(const cms::soa::SoAConstParametersImpl<cms::soa::SoAColumnType::jagged, T>& column,
+                       cms::soa::size_type elements,
+                       cms::soa::byte_size_type alignment) {
+    return std::span(column.addr_, elements);
   }
 
 }  // namespace cms::soa::detail
