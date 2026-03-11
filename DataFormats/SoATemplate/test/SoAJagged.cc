@@ -6,6 +6,9 @@
 
 #include "DataFormats/SoATemplate/interface/SoALayout.h"
 
+// TODO: remove later
+#include <iostream>
+
 // clang-format off
 GENERATE_SOA_LAYOUT(SimpleLayoutTemplate,
   SOA_JAGGED_COLUMN(float, x),
@@ -13,11 +16,12 @@ GENERATE_SOA_LAYOUT(SimpleLayoutTemplate,
 // clang-format on
 
 using SimpleLayout = SimpleLayoutTemplate<>;
+using View = SimpleLayout::ViewTemplate<cms::soa::RestrictQualify::enabled, cms::soa::RangeChecking::disabled>;
 
 TEST_CASE("SoATemplate") {
   // number of elements
-  const std::size_t slSize = 10;
-  const std::size_t jaggedSize = 20;
+  const View::size_type slSize = 10;
+  const View::size_type jaggedSize = 2000;
   // size in bytes
   const std::size_t slBufferSize = SimpleLayout::computeDataSize(slSize, jaggedSize);
   // memory buffer aligned according to the layout requirements
@@ -28,7 +32,36 @@ TEST_CASE("SoATemplate") {
 
 
 
-  SimpleLayout::View slv{sl};
+  View slv{sl};
+
+  
+
+  for (View::size_type i = 0; i < slSize; ++i) {
+    auto slvi = slv[i];
+    slvi.y() = static_cast<float>(i);
+  }
+
+  std::cout << "Init y done" << std::endl;
+
+  for (View::size_type i = 0; i < jaggedSize; ++i) {
+    auto slvi = slv[i];
+    slvi.x() = static_cast<float>(jaggedSize);
+  }
+
+  std::cout << "Init x done" << std::endl;
+
+
+  for (View::size_type i = 0; i < slv.metadata().size(); ++i) {
+    auto slvi = slv[i];
+    std::cout << "index: " << i << ", x: " << slvi.x() << ", y: " << slvi.y() << std::endl;
+
+  }
+
+  for (View::size_type i = 0; i < jaggedSize; ++i) {
+    auto slvi = slv[i];
+    std::cout << "index: " << i << ", x: " << slvi.x() << std::endl;
+
+  }
 
   // TODO implement access for jagged columns and test here
 

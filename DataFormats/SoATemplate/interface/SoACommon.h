@@ -776,6 +776,41 @@ namespace cms::soa {
     const size_type size_ = 0;
   };
 
+  // Jagged column
+  template <typename T, byte_size_type alignment, bool restrictQualify>
+  struct SoAColumnAccessorsImpl<T, SoAColumnType::jagged, SoAAccessType::mutableAccess, alignment, restrictQualify> {
+    SOA_HOST_DEVICE SOA_INLINE SoAColumnAccessorsImpl(const SoAParametersImpl<SoAColumnType::jagged, T>& params,
+                                                      size_type size)
+        : params_(params), size_(size) {}
+    SOA_HOST_DEVICE SOA_INLINE std::span<T> operator()() { return std::span<T>(params_.addr_, size_); }
+
+    using NoParamReturnType = std::span<T>;
+    using ParamReturnType = T&;
+    SOA_HOST_DEVICE SOA_INLINE T& operator()(size_type index) { return params_.addr_[index]; }
+
+  private:
+    SoAParametersImpl<SoAColumnType::jagged, T> params_;
+    size_type size_ = 0;
+  };
+
+  // Const jagged column
+  template <typename T, byte_size_type alignment, bool restrictQualify>
+  struct SoAColumnAccessorsImpl<T, SoAColumnType::jagged, SoAAccessType::constAccess, alignment, restrictQualify> {
+    SOA_HOST_DEVICE SOA_INLINE SoAColumnAccessorsImpl(const SoAConstParametersImpl<SoAColumnType::jagged, T>& params,
+                                                      size_type size)
+        : params_(params), size_(size) {}
+    SOA_HOST_DEVICE SOA_INLINE std::span<const T> operator()() const {
+      return std::span<const T>(params_.addr_, size_);
+    }
+    using NoParamReturnType = std::span<const T>;
+    using ParamReturnType = const T&;
+    SOA_HOST_DEVICE SOA_INLINE T const& operator()(size_type index) const { return params_.addr_[index]; }
+
+  private:
+    SoAConstParametersImpl<SoAColumnType::jagged, T> params_;
+    const size_type size_ = 0;
+  };
+
   // Scalar
   template <typename T, byte_size_type alignment, bool restrictQualify>
   struct SoAColumnAccessorsImpl<T, SoAColumnType::scalar, SoAAccessType::mutableAccess, alignment, restrictQualify> {

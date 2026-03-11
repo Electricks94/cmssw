@@ -44,6 +44,18 @@ namespace cms::soa {
 }  // namespace cms::soa
 // namespace cms::soa
 
+// -------- MACROS FOR CHECKING THE PRESENCE OF JAGGED COLUMNS --------
+
+#define HAS_JAGGED_IMPL(R, DATA, TYPE_NAME) \
+    BOOST_PP_OR(DATA, BOOST_PP_EQUAL(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_TYPE_JAGGED_COLUMN))
+
+#define HAS_JAGGED(...) \
+    BOOST_PP_SEQ_FOLD_LEFT(HAS_JAGGED_IMPL, 0, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+
+#define IF_HAS_JAGGED(TRUECODE, FALSECODE, ...) \
+    BOOST_PP_REMOVE_PARENS(BOOST_PP_IF(HAS_JAGGED(__VA_ARGS__), TRUECODE, FALSECODE))
+
+
 // -------- MACROS FOR GENERATING SOA LAYOUT --------
 
 #define _COUNT_SOA_METHODS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS, DATA) \
@@ -1457,15 +1469,15 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                  template RestrictQualifier<restrictQualify>::ParamReturnType                                        \
   NAME(size_type _soa_impl_index) {                                                                                  \
     if constexpr (rangeChecking == cms::soa::RangeChecking::enabled) {                                               \
-      if (_soa_impl_index >= base_type::elements_ or _soa_impl_index < 0)                                            \
+      if (_soa_impl_index >= BOOST_PP_CAT(NAME, Size_) or _soa_impl_index < 0)                                            \
         SOA_THROW_OUT_OF_RANGE("Out of range index in mutable " #NAME "(size_type index)",                           \
-          _soa_impl_index, base_type::elements_)                                                                     \
+          _soa_impl_index, BOOST_PP_CAT(NAME, Size_))                                                                     \
     }                                                                                                                \
     return typename cms::soa::SoAAccessors<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::                         \
         template ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template AccessType<                       \
             cms::soa::SoAAccessType::mutableAccess>::template Alignment<conditionalAlignment>::                      \
                 template RestrictQualifier<restrictQualify>(cms::soa::const_cast_SoAParametersImpl(                  \
-                    base_type:: BOOST_PP_CAT(NAME, Parameters_)), base_type::elements_)(_soa_impl_index);            \
+                    base_type:: BOOST_PP_CAT(NAME, Parameters_)), BOOST_PP_CAT(NAME, Size_))(_soa_impl_index);            \
   }                                                                                                                  \
 )
 // clang-format on
@@ -1525,13 +1537,15 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       _soa_impl_os << "  sizeof(" #CLASS "): " << sizeof(CLASS) << std::endl;                                          \
       byte_size_type _soa_impl_offset = 0;                                                                             \
       _ITERATE_ON_ALL(_DECLARE_SOA_STREAM_INFO, ~, __VA_ARGS__)                                                        \
-      _soa_impl_os << "Final offset = " << _soa_impl_offset << " computeDataSize(...): " << computeDataSize(elements_, _ITERATE_ON_ALL_COMMA(_ADD_JAGGED_MEMBER, ~, __VA_ARGS__)) \
+      _soa_impl_os << "Final offset = " << _soa_impl_offset << " computeDataSize(...): "                               \
+              << computeDataSize(IF_HAS_JAGGED((elements_, elementsJagged_), elements_, __VA_ARGS__))                  \
               << std::endl;                                                                                            \
       _soa_impl_os << std::endl;                                                                                       \
     }                                                                                                                  \
                                                                                                                        \
     /* Helper function used by caller to externally allocate the storage */                                            \
-    static constexpr byte_size_type computeDataSize(size_type elements, _ITERATE_ON_ALL_COMMA(_DECLARE_MEMBER_CONSTRUCTION, ~, __VA_ARGS__)) {                                              \
+    static constexpr byte_size_type computeDataSize(                                                                   \
+      IF_HAS_JAGGED((size_type elements, size_type elementsJagged), size_type elements, __VA_ARGS__)) {                \
       byte_size_type _soa_impl_ret = 0;                                                                                \
       _ITERATE_ON_ALL(_ACCUMULATE_SOA_ELEMENT, ~, __VA_ARGS__)                                                         \
       return _soa_impl_ret;                                                                                            \
