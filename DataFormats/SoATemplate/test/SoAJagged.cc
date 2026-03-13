@@ -16,12 +16,12 @@ GENERATE_SOA_LAYOUT(SimpleLayoutTemplate,
 // clang-format on
 
 using SimpleLayout = SimpleLayoutTemplate<>;
-using View = SimpleLayout::ViewTemplate<cms::soa::RestrictQualify::enabled, cms::soa::RangeChecking::disabled>;
+using View = SimpleLayout::View;
 
 TEST_CASE("SoATemplate") {
   // number of elements
   const View::size_type slSize = 10;
-  const View::size_type jaggedSize = 2000;
+  const View::size_type jaggedSize = 20;
   // size in bytes
   const std::size_t slBufferSize = SimpleLayout::computeDataSize(slSize, jaggedSize);
   // memory buffer aligned according to the layout requirements
@@ -51,15 +51,15 @@ TEST_CASE("SoATemplate") {
   std::cout << "Init x done" << std::endl;
 
 
-  for (View::size_type i = 0; i < slv.metadata().size(); ++i) {
+  for (View::size_type i = 0; i < slv.metadata().size()[0]; ++i) {
     auto slvi = slv[i];
     std::cout << "index: " << i << ", x: " << slvi.x() << ", y: " << slvi.y() << std::endl;
 
   }
 
-  for (View::size_type i = 0; i < jaggedSize; ++i) {
+  for (View::size_type i = 0; i < slv.metadata().size()[1]; ++i) {
     auto slvi = slv[i];
-    std::cout << "index: " << i << ", x: " << slvi.x() << std::endl;
+    std::cout << "index: " << i << ", x: " << slvi.y() << std::endl;
 
   }
 

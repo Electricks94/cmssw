@@ -55,6 +55,8 @@ namespace cms::soa {
 #define IF_HAS_JAGGED(TRUECODE, FALSECODE, ...) \
     BOOST_PP_REMOVE_PARENS(BOOST_PP_IF(HAS_JAGGED(__VA_ARGS__), TRUECODE, FALSECODE))
 
+#define IF_IS_JAGGED(TRUECODE, FALSECODE, TYPE_NAME) \
+    BOOST_PP_REMOVE_PARENS(BOOST_PP_IF(BOOST_PP_EQUAL(TYPE_NAME, _VALUE_TYPE_JAGGED_COLUMN), TRUECODE, FALSECODE))
 
 // -------- MACROS FOR GENERATING SOA LAYOUT --------
 
@@ -73,7 +75,7 @@ namespace cms::soa {
 // clang-format off
 #define _DECLARE_SOA_STREAM_INFO_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                     \
   cms::soa::detail::PrintColumn<BOOST_PP_CAT(typename Metadata::ParametersTypeOf_, NAME)>{} \
-  (_soa_impl_os, BOOST_PP_STRINGIZE(NAME), _soa_impl_offset, elements_, alignment);
+  (_soa_impl_os, BOOST_PP_STRINGIZE(NAME), _soa_impl_offset, IF_IS_JAGGED(elementsJagged_, elements_, VALUE_TYPE), alignment);
 // clang-format on
 
 #define _DECLARE_SOA_STREAM_INFO(R, DATA, TYPE_NAME)                                        \
@@ -119,7 +121,7 @@ namespace cms::soa {
       SOA_HOST_DEVICE SOA_INLINE                                                                                       \
       BOOST_PP_CAT(ParametersTypeOf_, NAME) BOOST_PP_CAT(parametersOf_, NAME)() const {                                \
         return BOOST_PP_CAT(ParametersTypeOf_, NAME) (parent_.BOOST_PP_CAT(NAME, _),                                   \
-                                                      parent_.BOOST_PP_CAT(NAME, Size_));                              \
+                                                      parent_.elementsJagged_);                                        \
       }                                                                                                                \
   )                                                                                                                    \
   SOA_HOST_DEVICE SOA_INLINE                                                                                           \
@@ -134,22 +136,22 @@ namespace cms::soa {
       /* Scalar */                                                                                                     \
       SOA_HOST_DEVICE SOA_INLINE byte_size_type BOOST_PP_CAT(NAME, Pitch()) const {                                    \
         return cms::soa::detail::ComputePitch<BOOST_PP_CAT(ParametersTypeOf_, NAME)>{}(parent_.elements_,              \
-                                                                                       ParentClass::alignment);          \
+                                                                                       ParentClass::alignment);        \
       },                                                                                                               \
       /* Column */                                                                                                     \
       SOA_HOST_DEVICE SOA_INLINE byte_size_type BOOST_PP_CAT(NAME, Pitch()) const {                                    \
         return cms::soa::detail::ComputePitch<BOOST_PP_CAT(ParametersTypeOf_, NAME)>{}(parent_.elements_,              \
-                                                                                       ParentClass::alignment);          \
+                                                                                       ParentClass::alignment);        \
       },                                                                                                               \
       /* Eigen column */                                                                                               \
       SOA_HOST_DEVICE SOA_INLINE byte_size_type BOOST_PP_CAT(NAME, Pitch()) const {                                    \
         return cms::soa::detail::ComputePitch<BOOST_PP_CAT(ParametersTypeOf_, NAME)>{}(parent_.elements_,              \
-                                                                                       ParentClass::alignment);          \
+                                                                                       ParentClass::alignment);        \
       },                                                                                                               \
       /* Jagged column */                                                                                              \
       SOA_HOST_DEVICE SOA_INLINE byte_size_type BOOST_PP_CAT(NAME, Pitch()) const {                                    \
-        return cms::soa::detail::ComputePitch<BOOST_PP_CAT(ParametersTypeOf_, NAME)>{}(parent_.BOOST_PP_CAT(NAME, Size_),              \
-                                                                                       ParentClass::alignment);          \
+        return cms::soa::detail::ComputePitch<BOOST_PP_CAT(ParametersTypeOf_, NAME)>{}(elementsJagged_,                \
+                                                                                       ParentClass::alignment);        \
       }                                                                                                                \
   )                                                                                                                    \
 // clang-format on
@@ -268,7 +270,6 @@ namespace cms::soa {
       (BOOST_PP_CAT(NAME, Stride_)(0)),                                                                                \
       /* Jagged column */                                                                                              \
       (BOOST_PP_CAT(NAME, _)(nullptr))                                                                                 \
-      (BOOST_PP_CAT(NAME, Size_)(0))                                                                                   \
 )
 // clang-format on
 
@@ -287,7 +288,6 @@ namespace cms::soa {
       /* Eigen column */                                                                                               \
       ,                                                                                                                \
       /* Jagged column */                                                                                              \
-      (size_type BOOST_PP_CAT(NAME, Size))                                                                             \
 )
 // clang-format on
 
@@ -306,7 +306,6 @@ namespace cms::soa {
       /* Eigen column */                                                                                               \
       ,                                                                                                                \
       /* Jagged column */                                                                                              \
-      (BOOST_PP_CAT(NAME, Size_))                                                                                      \
 )
 // clang-format on
 
@@ -329,7 +328,6 @@ namespace cms::soa {
       (BOOST_PP_CAT(NAME, Stride_){_soa_impl_other.BOOST_PP_CAT(NAME, Stride_)}),                                      \
       /* Jagged column */                                                                                              \
       (BOOST_PP_CAT(NAME, _){_soa_impl_other.BOOST_PP_CAT(NAME, _)})                                                   \
-      (BOOST_PP_CAT(NAME, Size_){_soa_impl_other.BOOST_PP_CAT(NAME, Size_)})                                           \
   )
 // clang-format on
 
@@ -351,7 +349,6 @@ namespace cms::soa {
       BOOST_PP_CAT(NAME, Stride_) = _soa_impl_other.BOOST_PP_CAT(NAME, Stride_);,                                      \
       /* Jagged column */                                                                                              \
       BOOST_PP_CAT(NAME, _) = _soa_impl_other.BOOST_PP_CAT(NAME, _);                                                   \
-      BOOST_PP_CAT(NAME, Size_) = _soa_impl_other.BOOST_PP_CAT(NAME, Size_);                                           \
   )
 // clang-format on
 
@@ -370,7 +367,6 @@ namespace cms::soa {
       /* Eigen column */                                                                                               \
       ,                                                                                                                \
       /* Jagged column */                                                                                              \
-      (BOOST_PP_CAT(NAME, Size_)(BOOST_PP_CAT(NAME, Size)))                                                             \
   )
 // clang-format on
 
@@ -500,7 +496,7 @@ namespace cms::soa {
       ,                                                                                                                \
       /* Jagged column */                                                                                              \
       BOOST_PP_CAT(NAME, _) = reinterpret_cast<CPP_TYPE*>(_soa_impl_curMem);                                           \
-      _soa_impl_curMem += cms::soa::alignSize(BOOST_PP_CAT(NAME, Size_) * sizeof(CPP_TYPE), alignment);                \
+      _soa_impl_curMem += cms::soa::alignSize(elementsJagged_ * sizeof(CPP_TYPE), alignment);                          \
   )                                                                                                                    \
   if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                                \
     cms::soa::detail::checkAlignment(BOOST_PP_CAT(NAME, _), alignment,                                                 \
@@ -521,7 +517,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
   _soa_impl_ret += cms::soa::detail::ComputePitch<BOOST_PP_CAT(typename Metadata::ParametersTypeOf_, NAME)>{}(elements, alignment);,\
   _soa_impl_ret += cms::soa::detail::ComputePitch<BOOST_PP_CAT(typename Metadata::ParametersTypeOf_, NAME)>{}(elements, alignment);,\
   _soa_impl_ret += cms::soa::detail::ComputePitch<BOOST_PP_CAT(typename Metadata::ParametersTypeOf_, NAME)>{}(elements, alignment);,\
-  _soa_impl_ret += cms::soa::detail::ComputePitch<BOOST_PP_CAT(typename Metadata::ParametersTypeOf_, NAME)>{}(BOOST_PP_CAT(NAME, Size), alignment);\
+  _soa_impl_ret += cms::soa::detail::ComputePitch<BOOST_PP_CAT(typename Metadata::ParametersTypeOf_, NAME)>{}(elementsJagged, alignment);\
 )
 // clang-format on
 
@@ -611,7 +607,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
         sizeof(CPP_TYPE::Scalar) * BOOST_PP_CAT(NAME, ElementsWithPadding_));                                          \
       ,                                                                                                                \
       /* Jagged column */                                                                                              \
-      memcpy(BOOST_PP_CAT(NAME, _), onfile.BOOST_PP_CAT(NAME, _), sizeof(CPP_TYPE) * onfile.BOOST_PP_CAT(NAME, Size_));\
+      memcpy(BOOST_PP_CAT(NAME, _), onfile.BOOST_PP_CAT(NAME, _), sizeof(CPP_TYPE) * onfile.elementsJagged_);          \
     )
 // clang-format on
 
@@ -636,7 +632,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
   ,                                                                                                                    \
   /* Jagged column */                                                                                                  \
   CPP_TYPE * BOOST_PP_CAT(NAME, _) EDM_REFLEX_SIZE(elements_) = nullptr;                                               \
-  size_type BOOST_PP_CAT(NAME, Size_);                                                                                 \
 )
 // clang-format on
 
@@ -662,7 +657,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                   , /* Jagged column */                                     \
                   memcpy(BOOST_PP_CAT(this->metadata().addressOf_, NAME)(), \
                          BOOST_PP_CAT(view.metadata().addressOf_, NAME)(),  \
-                         BOOST_PP_CAT(NAME, Size_) * sizeof(CPP_TYPE));)
+                         elementsJagged_ * sizeof(CPP_TYPE));)
 // clang-format on
 
 #define _COPY_VIEW_COLUMNS(R, DATA, TYPE_NAME)                                              \
@@ -729,7 +724,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  */
 #define _CONST_ACCESSORS_STRUCT_MEMBERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                        \
   cms::soa::ConstTuple<typename Metadata::BOOST_PP_CAT(ParametersTypeOf_, NAME)>::Type NAME() const { \
-    return std::make_tuple(BOOST_PP_CAT(NAME, _), parent_.elements_);                                 \
+    return std::make_tuple(BOOST_PP_CAT(NAME, _),                                                     \
+    IF_IS_JAGGED(parent_.elementsJagged_, parent_.elements_, VALUE_TYPE));                            \
   }
 
 #define _CONST_ACCESSORS_STRUCT_MEMBERS(R, DATA, TYPE_NAME)                                 \
@@ -1049,7 +1045,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
     return typename cms::soa::SoAAccessors<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::                         \
         template ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template AccessType<                       \
             cms::soa::SoAAccessType::constAccess>::template Alignment<conditionalAlignment>::                        \
-                template RestrictQualifier<restrictQualify>(BOOST_PP_CAT(NAME, Parameters_), BOOST_PP_CAT(NAME, Size_))();           \
+                template RestrictQualifier<restrictQualify>(BOOST_PP_CAT(NAME, Parameters_), elementsJagged_)();     \
   }                                                                                                                  \
   SOA_HOST_DEVICE SOA_INLINE                                                                                         \
   typename cms::soa::SoAAccessors<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::                                  \
@@ -1058,15 +1054,15 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                  template RestrictQualifier<restrictQualify>::ParamReturnType                                        \
   NAME(size_type _soa_impl_index) const {                                                                            \
     if constexpr (rangeChecking == cms::soa::RangeChecking::enabled) {                                               \
-      if (_soa_impl_index >= BOOST_PP_CAT(NAME, Size_) or _soa_impl_index < 0)                                       \
+      if (_soa_impl_index >= elementsJagged_ or _soa_impl_index < 0)                                                 \
         SOA_THROW_OUT_OF_RANGE("Out of range index in mutable " #NAME "(size_type index)",                           \
-          _soa_impl_index, BOOST_PP_CAT(NAME, Size_))                                                                \
+          _soa_impl_index, elementsJagged_)                                                                          \
     }                                                                                                                \
     return typename cms::soa::SoAAccessors<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::                         \
         template ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template AccessType<                       \
             cms::soa::SoAAccessType::constAccess>::template Alignment<conditionalAlignment>::                        \
                 template RestrictQualifier<restrictQualify>(BOOST_PP_CAT(NAME, Parameters_),                         \
-                    BOOST_PP_CAT(NAME, Size_))(_soa_impl_index);                                                     \
+                    elementsJagged_)(_soa_impl_index);                                                               \
   }                                                                                                                  \
 )
 // clang-format on
@@ -1107,7 +1103,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  */
 #define _ACCESSORS_STRUCT_MEMBERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                         \
   cms::soa::Tuple<typename Metadata::BOOST_PP_CAT(ParametersTypeOf_, NAME)>::Type NAME() const { \
-    return std::make_tuple(BOOST_PP_CAT(NAME, _), parent_.elements_);                            \
+    return std::make_tuple(BOOST_PP_CAT(NAME, _),                                                \
+    IF_IS_JAGGED(parent_.elementsJagged_, parent_.elements_, VALUE_TYPE));                       \
   }
 
 #define _ACCESSORS_STRUCT_MEMBERS(R, DATA, TYPE_NAME)                                       \
@@ -1469,15 +1466,15 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                  template RestrictQualifier<restrictQualify>::ParamReturnType                                        \
   NAME(size_type _soa_impl_index) {                                                                                  \
     if constexpr (rangeChecking == cms::soa::RangeChecking::enabled) {                                               \
-      if (_soa_impl_index >= BOOST_PP_CAT(NAME, Size_) or _soa_impl_index < 0)                                            \
+      if (_soa_impl_index >= elementsJagged_ or _soa_impl_index < 0)                                                 \
         SOA_THROW_OUT_OF_RANGE("Out of range index in mutable " #NAME "(size_type index)",                           \
-          _soa_impl_index, BOOST_PP_CAT(NAME, Size_))                                                                     \
+          _soa_impl_index, elementsJagged_)                                                                          \
     }                                                                                                                \
     return typename cms::soa::SoAAccessors<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::                         \
         template ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template AccessType<                       \
             cms::soa::SoAAccessType::mutableAccess>::template Alignment<conditionalAlignment>::                      \
                 template RestrictQualifier<restrictQualify>(cms::soa::const_cast_SoAParametersImpl(                  \
-                    base_type:: BOOST_PP_CAT(NAME, Parameters_)), BOOST_PP_CAT(NAME, Size_))(_soa_impl_index);            \
+                    base_type:: BOOST_PP_CAT(NAME, Parameters_)), elementsJagged_)(_soa_impl_index);                 \
   }                                                                                                                  \
 )
 // clang-format on
@@ -1556,14 +1553,14 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
      */                                                                                                                \
     struct Metadata {                                                                                                  \
       friend CLASS;                                                                                                    \
-      SOA_HOST_DEVICE SOA_INLINE size_type size() const { return parent_.elements_; }                                  \
+      SOA_HOST_DEVICE SOA_INLINE IF_HAS_JAGGED((std::array<size_type, 2> size() const { return {parent_.elements_, parent_.elementsJagged_}; } ), size_type size() const { return parent_.elements_; } , __VA_ARGS__)\
       SOA_HOST_DEVICE SOA_INLINE byte_size_type byteSize() const { return parent_.byteSize_; }                         \
       SOA_HOST_DEVICE SOA_INLINE byte_size_type alignment() const { return CLASS::alignment; }                         \
       SOA_HOST_DEVICE SOA_INLINE std::byte* data() { return parent_.mem_; }                                            \
       SOA_HOST_DEVICE SOA_INLINE const std::byte* data() const { return parent_.mem_; }                                \
       SOA_HOST_DEVICE SOA_INLINE std::byte* nextByte() const { return parent_.mem_ + parent_.byteSize_; }              \
       SOA_HOST_DEVICE SOA_INLINE CLASS cloneToNewAddress(std::byte* _soa_impl_addr) const {                            \
-        return CLASS(_soa_impl_addr, parent_.elements_);                                                               \
+        return CLASS(_soa_impl_addr, IF_HAS_JAGGED((parent_.elements_, parent_.elementsJagged_), parent_.elements_, __VA_ARGS__));                                                               \
       }                                                                                                                \
                                                                                                                        \
       _ITERATE_ON_ALL(_DEFINE_METADATA_MEMBERS, ~, __VA_ARGS__)                                                        \
@@ -1634,7 +1631,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
        */                                                                                                              \
       struct Metadata {                                                                                                \
         friend ConstViewTemplateFreeParams;                                                                            \
-        SOA_HOST_DEVICE SOA_INLINE size_type size() const { return parent_.elements_; }                                \
+        SOA_HOST_DEVICE SOA_INLINE IF_HAS_JAGGED((std::array<size_type, 2> size() const { return {parent_.elements_, parent_.elementsJagged_}; } ), size_type size() const { return parent_.elements_; } , __VA_ARGS__)   \
         /* Alias layout to name-derived identifyer to allow simpler definitions */                                     \
         using TypeOf_Layout = BOOST_PP_CAT(CLASS, _parametrized);                                                      \
                                                                                                                        \
@@ -1675,10 +1672,10 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                                                                                                                        \
       /* Constructor relying the layout */                                                                             \
       SOA_HOST_ONLY ConstViewTemplateFreeParams(const Metadata::TypeOf_Layout& layout)                                 \
-      : elements_(layout.metadata().size()),                                                                           \
+      : IF_HAS_JAGGED((elements_(layout.metadata().size()[0]), elementsJagged_(layout.metadata().size()[1])), elements_(layout.metadata().size()), __VA_ARGS__),                                                                           \
         _ITERATE_ON_ALL_COMMA(_DECLARE_VIEW_MEMBER_INITIALIZERS, ~, __VA_ARGS__) {}                                    \
                                                                                                                        \
-      /* Constructor relying on individually provided column structs */                                                \
+      /* Constructor relying on individually provided column structs TODO correct for jagged */                                                \
       SOA_HOST_ONLY ConstViewTemplateFreeParams(_ITERATE_ON_ALL_COMMA(                                                 \
                 _DECLARE_CONST_VIEW_CONSTRUCTOR_COLUMNS, ~, __VA_ARGS__)) {                                            \
         bool readyToSet = false;                                                                                       \
@@ -1696,14 +1693,14 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                 bool OTHER_RANGE_CHECKING>                                                                             \
       ConstViewTemplateFreeParams(ConstViewTemplateFreeParams<OTHER_VIEW_ALIGNMENT,                                    \
         OTHER_VIEW_ALIGNMENT_ENFORCEMENT, OTHER_RESTRICT_QUALIFY, OTHER_RANGE_CHECKING> const& other)                  \
-        : ConstViewTemplateFreeParams{other.elements_,                                                                 \
+        : ConstViewTemplateFreeParams{IF_HAS_JAGGED((other.elements_, other.elementsJagged_), other.elements_, __VA_ARGS__), \
             _ITERATE_ON_ALL_COMMA(_DECLARE_VIEW_OTHER_MEMBER_LIST, BOOST_PP_EMPTY(), __VA_ARGS__)                      \
           } {}                                                                                                         \
                                                                                                                        \
       SOA_HOST_DEVICE                                                                                                  \
-      ConstViewTemplateFreeParams(size_type elems,                                                                     \
+      ConstViewTemplateFreeParams(IF_HAS_JAGGED((size_type elems, size_type elemsJagged), size_type elems, __VA_ARGS__),                                                                     \
         _ITERATE_ON_ALL_COMMA(_DECLARE_CONSTRUCTOR_CONST_COLUMNS, ~, __VA_ARGS__)) :                                   \
-        elements_{elems}, _ITERATE_ON_ALL_COMMA(_INITIALIZE_CONST_COLUMNS, ~, __VA_ARGS__) { }                         \
+        IF_HAS_JAGGED((elements_{elems}, elementsJagged_{elemsJagged}), elements_{elems}, __VA_ARGS__), _ITERATE_ON_ALL_COMMA(_INITIALIZE_CONST_COLUMNS, ~, __VA_ARGS__) { }                         \
                                                                                                                        \
       /* Copy operator for other parameters */                                                                         \
       template <CMS_SOA_BYTE_SIZE_TYPE OTHER_VIEW_ALIGNMENT,                                                           \
@@ -1738,9 +1735,9 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
         SOA_HOST_DEVICE SOA_INLINE                                                                                     \
         const_element operator[](size_type _soa_impl_index) const {                                                    \
           if constexpr (rangeChecking == cms::soa::RangeChecking::enabled) {                                           \
-            if (_soa_impl_index >= elements_ or _soa_impl_index < 0)                                                   \
+            if (_soa_impl_index >= std::max(elements_, elementsJagged_) or _soa_impl_index < 0)                                                   \
               SOA_THROW_OUT_OF_RANGE("Out of range index in ConstViewTemplateFreeParams " #CLASS "::operator[]",       \
-                _soa_impl_index, elements_)                                                                            \
+                _soa_impl_index, std::max(elements_, elementsJagged_))                                                                            \
           }                                                                                                            \
           return const_element{                                                                                        \
             _soa_impl_index, _ITERATE_ON_ALL_COMMA(_DECLARE_VIEW_CONST_ELEMENT_CONSTR_CALL, ~, __VA_ARGS__)            \
@@ -1756,6 +1753,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                                                                                                                        \
         private:                                                                                                       \
           size_type elements_ = 0;                                                                                     \
+          IF_HAS_JAGGED(size_type elementsJagged_;, BOOST_PP_EMPTY(), __VA_ARGS__)                                     \
           _ITERATE_ON_ALL(_DECLARE_CONST_VIEW_SOA_MEMBER, ~, __VA_ARGS__)                                              \
       };                                                                                                               \
                                                                                                                        \
@@ -1801,7 +1799,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
        */                                                                                                              \
       struct Metadata {                                                                                                \
         friend ViewTemplateFreeParams;                                                                                 \
-        SOA_HOST_DEVICE SOA_INLINE size_type size() const { return parent_.elements_; }                                \
+        SOA_HOST_DEVICE SOA_INLINE IF_HAS_JAGGED((std::array<size_type, 2> size() const { return {parent_.elements_, parent_.elementsJagged_}; } ), size_type size() const { return parent_.elements_; } , __VA_ARGS__)\
         /* Alias layout to name-derived identifyer to allow simpler definitions */                                     \
         using TypeOf_Layout = BOOST_PP_CAT(CLASS, _parametrized);                                                      \
                                                                                                                        \
@@ -1855,7 +1853,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
         _ITERATE_ON_ALL(_INITIALIZE_VIEW_PARAMETERS_AND_SIZE, ~, __VA_ARGS__)                                          \
       }                                                                                                                \
                                                                                                                        \
-      SOA_HOST_DEVICE ViewTemplateFreeParams(size_type elems,                                                          \
+      SOA_HOST_DEVICE ViewTemplateFreeParams(IF_HAS_JAGGED((size_type elems, size_type elemsJagged), size_type elems, __VA_ARGS__),                                                          \
         _ITERATE_ON_ALL_COMMA(_DECLARE_CONSTRUCTOR_COLUMNS, ~, __VA_ARGS__)) :                                         \
         base_type{elems, _ITERATE_ON_ALL_COMMA(_INITIALIZE_COLUMNS, ~, __VA_ARGS__)} { }                               \
       /* Copiable */                                                                                                   \
@@ -1869,7 +1867,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                 bool OTHER_RANGE_CHECKING>                                                                             \
       ViewTemplateFreeParams(ViewTemplateFreeParams<OTHER_VIEW_ALIGNMENT, OTHER_VIEW_ALIGNMENT_ENFORCEMENT,            \
                                                     OTHER_RESTRICT_QUALIFY, OTHER_RANGE_CHECKING> const& other)        \
-      : base_type{other.elements_,                                                                                     \
+      : base_type{IF_HAS_JAGGED((other.elements_, other.elementsJagged_), other.elements_, __VA_ARGS__),               \
                   _ITERATE_ON_ALL_COMMA(_DECLARE_VIEW_OTHER_MEMBER_LIST, BOOST_PP_EMPTY(), __VA_ARGS__)                \
                 } {}                                                                                                   \
       /* Copy operator for other parameters */                                                                         \
@@ -1925,9 +1923,9 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       SOA_HOST_DEVICE SOA_INLINE                                                                                       \
       element operator[](size_type _soa_impl_index) {                                                                  \
         if constexpr (rangeChecking == cms::soa::RangeChecking::enabled) {                                             \
-          if (_soa_impl_index >= base_type::elements_ or _soa_impl_index < 0)                                          \
+          if (_soa_impl_index >= std::max(base_type::elements_, base_type::elementsJagged_) or _soa_impl_index < 0)                                          \
             SOA_THROW_OUT_OF_RANGE("Out of range index in ViewTemplateFreeParams" #CLASS "::operator[]",               \
-              _soa_impl_index, base_type::elements_)                                                                   \
+              _soa_impl_index, std::max(base_type::elements_, base_type::elementsJagged_))                                                                   \
         }                                                                                                              \
         return element{_soa_impl_index, _ITERATE_ON_ALL_COMMA(_DECLARE_VIEW_ELEMENT_CONSTR_CALL, ~, __VA_ARGS__)};     \
       }                                                                                                                \
@@ -1983,11 +1981,13 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
     CLASS()                                                                                                            \
         : mem_(nullptr),                                                                                               \
           elements_(0),                                                                                                \
-          byteSize_(0),                                                                                                \
-          _ITERATE_ON_ALL_COMMA(_DECLARE_MEMBER_TRIVIAL_CONSTRUCTION, ~, __VA_ARGS__) {}                               \
+          IF_HAS_JAGGED((elementsJagged_(0),), BOOST_PP_EMPTY(), __VA_ARGS__)                                          \
+          byteSize_(0){}                                                                                               \
                                                                                                                        \
     /* Constructor relying on user provided storage (implementation shared with ROOT streamer) */                      \
-    SOA_HOST_ONLY CLASS(std::byte* mem, size_type elements, _ITERATE_ON_ALL_COMMA(_DECLARE_MEMBER_CONSTRUCTION, ~, __VA_ARGS__)) : mem_(mem), elements_(elements), byteSize_(0), _ITERATE_ON_ALL_COMMA(_DECLARE_MEMBER_ASSIGNMENTC, ~, __VA_ARGS__) {           \
+    SOA_HOST_ONLY CLASS(std::byte* mem,                                                                                \
+      IF_HAS_JAGGED((size_type elements, size_type elementsJagged), size_type elements, __VA_ARGS__))                  \
+        : mem_(mem), IF_HAS_JAGGED((elements_(elements), elementsJagged_(elementsJagged)), elements_(elements), __VA_ARGS__), byteSize_(0) {           \
       organizeColumnsFromBuffer();                                                                                     \
     }                                                                                                                  \
                                                                                                                        \
@@ -2049,7 +2049,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       auto _soa_impl_curMem = mem_;                                                                                    \
       _ITERATE_ON_ALL(_ASSIGN_SOA_COLUMN_OR_SCALAR, ~, __VA_ARGS__)                                                    \
       /* Sanity check: we should have reached the computed size, only on host code */                                  \
-      byteSize_ = computeDataSize(elements_, _ITERATE_ON_ALL_COMMA(_ADD_JAGGED_MEMBER, ~, __VA_ARGS__));                                                                          \
+      byteSize_ = computeDataSize(IF_HAS_JAGGED((elements_, elementsJagged_), elements_, __VA_ARGS__));                \
       if (mem_ + byteSize_ != _soa_impl_curMem)                                                                        \
         cms::soa::detail::throwRuntimeError("In " #CLASS "::" #CLASS ": unexpected end pointer.");                     \
     }                                                                                                                  \
@@ -2077,6 +2077,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
     /* Data members */                                                                                                 \
     std::byte* mem_ EDM_REFLEX_TRANSIENT;                                                                              \
     size_type elements_;                                                                                               \
+    IF_HAS_JAGGED(size_type elementsJagged_;, BOOST_PP_EMPTY(), __VA_ARGS__)                                           \
     size_type const scalar_ = 1;                                                                                       \
     byte_size_type byteSize_ EDM_REFLEX_TRANSIENT;                                                                     \
     /* TODO: The layout will contain SoAParametersImpl as members for the columns, which will allow the use of         \
