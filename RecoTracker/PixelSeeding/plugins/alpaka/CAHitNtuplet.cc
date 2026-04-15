@@ -100,7 +100,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                   edm::RunCache<cms::alpakatools::MoveToDeviceCache<Device, ::reco::CAGeometryHost>>> {
     using HitsConstView = ::reco::TrackingRecHitConstView;
     using HitsOnDevice = reco::TrackingRecHitsSoACollection;
-    using HitsOnHost = ::reco::TrackingRecHitHost;
 
     using TkSoAHost = ::reco::TracksHost;
     using TkSoADevice = reco::TracksSoACollection;
@@ -368,6 +367,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     auto const& geometry = runCache()->get(iEvent.queue());
     auto const& hits = iEvent.get(tokenHit_);
+
+    std::cout << "Getting hits in CAHitNtupletAlpaka::produce for stream " << iEvent.streamID().value() << " with " << hits.nHits() << " hits.\n";
 
     /// Don't bother if no hits on BPix1 and no good graph for that
     /// (so no staring pair without BPix1 as first layer).
