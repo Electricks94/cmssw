@@ -77,6 +77,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   void SiPixelRecHitExtendedAlpaka::produce(edm::StreamID streamID,
                                             device::Event& iEvent,
                                             const device::EventSetup& es) const {
+    std::cout << "Calling SiPixelRecHitExtendedAlpaka::produce for stream " << streamID.value() << '\n';
     // get both Pixel and Tracker SoA collections
     auto queue = iEvent.queue();
     const auto& pixColl = iEvent.get(pixelRecHitToken_);
