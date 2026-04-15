@@ -121,6 +121,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     auto pixView = pixColl.view().trackingHits();
     auto trkView = trkColl.view().trackingHits();
 
+    std::cout << "size of pixColl: " << pixView.metadata().size() << "Actual Size: " << nPixHits << '\n';
+    std::cout << "size of trkColl: " << trkView.metadata().size() << "Actual Size: " << nTrkHits << '\n';
+
     // layout type (same for all views)
     using ViewType = decltype(outView);
     using LayoutType = typename ViewType::Metadata::TypeOf_Layout;
