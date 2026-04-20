@@ -400,8 +400,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     auto tracks = trackCollection.view().tracks();
 
-    HitsMultiView trackingHits(hitsRefProdVector, [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().trackingHits(); });
-    ModulesMultiView hitModules(hitsRefProdVector, [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().hitModules(); });
+    HitsMultiView trackingHits(
+        hitsRefProdVector, [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().trackingHits(); });
+    ModulesMultiView hitModules(
+        hitsRefProdVector, [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().hitModules(); });
 
     auto layers = geometry_d.view().layers();
     auto graph = geometry_d.view().graph();

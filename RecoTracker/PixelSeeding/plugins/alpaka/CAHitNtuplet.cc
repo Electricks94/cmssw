@@ -331,9 +331,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   private:
     const edm::ESGetToken<MagneticField, IdealMagneticFieldRecord> tokenField_;
-    // TODO: use std::optional for the input tokens for the missing one
-    const device::EDGetToken<HitsOnDevice> pixelRecHitToken_;
-    const device::EDGetToken<HitsOnDevice> trackerRecHitToken_;
+    std::optional<device::EDGetToken<HitsOnDevice>> pixelRecHitToken_;
+    std::optional<device::EDGetToken<HitsOnDevice>> trackerRecHitToken_;
     const device::EDPutToken<TkSoADevice> tokenTrack_;
 
     const ::reco::FormulaEvaluator maxNumberOfDoublets_;
@@ -347,12 +346,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                                         const ::reco::CAGeometryParams* iCache)
       : EDProducer(iConfig),
         tokenField_(esConsumes()),
-        pixelRecHitToken_(consumes(iConfig.getParameter<edm::InputTag>("pixelRecHitsSoA"))),
-        trackerRecHitToken_(consumes(iConfig.getParameter<edm::InputTag>("trackerRecHitsSoA"))),
         tokenTrack_(produces()),
         maxNumberOfDoublets_(iConfig.getParameter<std::string>("maxNumberOfDoublets")),
         maxNumberOfTuples_(iConfig.getParameter<std::string>("maxNumberOfTuples")),
         deviceAlgo_(iConfig) {
+    if (iConfig.exists("pixelRecHitsSoA")) {
+      pixelRecHitToken_ = consumes(iConfig.getParameter<edm::InputTag>("pixelRecHitsSoA"));
+    }
+
+    if (iConfig.exists("trackerRecHitsSoA")) {
+      trackerRecHitToken_ = consumes(iConfig.getParameter<edm::InputTag>("trackerRecHitsSoA"));
+    }
     iCache->tokenGeometry_ = esConsumes<edm::Transition::BeginRun>();
     iCache->tokenTopology_ = esConsumes<edm::Transition::BeginRun>();
   }
@@ -373,12 +377,27 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     auto bf = 1. / es.getData(tokenField_).inverseBzAtOriginInGeV();
 
     auto const& geometry = runCache()->get(iEvent.queue());
-    const auto& pixColl = iEvent.get(pixelRecHitToken_);
-    const auto& trkColl = iEvent.get(trackerRecHitToken_);
 
     HitsOnDeviceRefProdVector hitsCollections;
-    hitsCollections.push_back(edm::RefProd<HitsOnDevice>(&pixColl));
-    hitsCollections.push_back(edm::RefProd<HitsOnDevice>(&trkColl));
+    if (pixelRecHitToken_) {
+      const auto& pixColl = iEvent.get(*pixelRecHitToken_);
+      hitsCollections.push_back(edm::RefProd<HitsOnDevice>(&pixColl));
+    }
+
+    if (trackerRecHitToken_) {
+      const auto& trkColl = iEvent.get(*trackerRecHitToken_);
+      hitsCollections.push_back(edm::RefProd<HitsOnDevice>(&trkColl));
+    }
+
+    if (hitsCollections.empty()) {
+      edm::LogWarning("CAHitNtupletAlpaka") << "No input hit collection. Returning with 0 tracks!";
+      auto& queue = iEvent.queue();
+      reco::TracksSoACollection tracks(queue, 0, 0);
+      auto ntracks_d = cms::alpakatools::make_device_view(queue, tracks.view().tracks().nTracks());
+      alpaka::memset(queue, ntracks_d, 0);
+      iEvent.emplace(tokenTrack_, std::move(tracks));
+      return;
+    }
 
     uint32_t nHits = 0;
     for (auto const& ref : hitsCollections)
