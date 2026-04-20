@@ -3,7 +3,7 @@
 #include <TFormula.h>
 #include "CommonTools/Utils/interface/FormulaEvaluator.h"
 
-#include "DataFormats/Common/interface/RefProd.h"
+#include "DataFormats/Common/interface/RefProdVector.h"
 #include "DataFormats/TrackSoA/interface/TracksHost.h"
 #include "DataFormats/TrackSoA/interface/alpaka/TracksSoACollection.h"
 #include "DataFormats/TrackSoA/interface/TracksDevice.h"
@@ -101,6 +101,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                   edm::RunCache<cms::alpakatools::MoveToDeviceCache<Device, ::reco::CAGeometryHost>>> {
     using HitsConstView = ::reco::TrackingRecHitConstView;
     using HitsOnDevice = reco::TrackingRecHitsSoACollection;
+
+    using HitsOnDeviceRefProdVector = edm::RefProdVector<HitsOnDevice>;
 
     using TkSoAHost = ::reco::TracksHost;
     using TkSoADevice = reco::TracksSoACollection;
@@ -329,6 +331,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   private:
     const edm::ESGetToken<MagneticField, IdealMagneticFieldRecord> tokenField_;
+    // TODO: use std::optional for the input tokens for the missing one
     const device::EDGetToken<HitsOnDevice> pixelRecHitToken_;
     const device::EDGetToken<HitsOnDevice> trackerRecHitToken_;
     const device::EDPutToken<TkSoADevice> tokenTrack_;
@@ -373,14 +376,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     const auto& pixColl = iEvent.get(pixelRecHitToken_);
     const auto& trkColl = iEvent.get(trackerRecHitToken_);
 
-    std::vector<edm::RefProd<HitsOnDevice>> hitsCollections;
+    HitsOnDeviceRefProdVector hitsCollections;
     hitsCollections.push_back(edm::RefProd<HitsOnDevice>(&pixColl));
     hitsCollections.push_back(edm::RefProd<HitsOnDevice>(&trkColl));
 
     uint32_t nHits = 0;
-    for (auto const& ref : hitsCollections) {
+    for (auto const& ref : hitsCollections)
       nHits += ref->nHits();
-    }
 
     const int32_t offsetBPIX2 = hitsCollections[0]->offsetBPIX2();
 

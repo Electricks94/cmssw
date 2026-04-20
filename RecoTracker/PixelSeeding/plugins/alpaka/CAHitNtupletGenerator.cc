@@ -383,7 +383,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   template <typename TrackerTraits>
   reco::TracksSoACollection CAHitNtupletGenerator<TrackerTraits>::makeTuplesAsync(
-      std::vector<edm::RefProd<HitsOnDevice>> const& hits_d,
+      HitsOnDeviceRefProdVector const& hitsRefProdVector,
       CAGeometryOnDevice const& geometry_d,
       float bfield,
       uint32_t nDoublets,
@@ -400,28 +400,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     auto tracks = trackCollection.view().tracks();
 
-    // TODO: implement implace construction of the MultiViews directly from the RefProds
-    HitsMultiView trackingHits;
-    for (auto const& ref : hits_d) {
-      trackingHits.addView(ref->const_view().trackingHits());
-    }
-
-    ModulesMultiView hitModules;
-    for (auto const& ref : hits_d) {
-      hitModules.addView(ref->const_view().hitModules());
-    }
+    HitsMultiView trackingHits(hitsRefProdVector, [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().trackingHits(); });
+    ModulesMultiView hitModules(hitsRefProdVector, [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().hitModules(); });
 
     auto layers = geometry_d.view().layers();
     auto graph = geometry_d.view().graph();
     auto modules = geometry_d.view().modules();
 
-    // TODO: get it from the MultiView later
-    uint32_t nHits = 0;
-    for (auto const& ref : hits_d) {
-      nHits += ref->nHits();
-    }
-
-    const int32_t offsetBPIX2 = hits_d[0]->offsetBPIX2();
+    const uint32_t nHits = static_cast<uint32_t>(trackingHits.size());
+    const uint32_t offsetBPIX2 = static_cast<uint32_t>(hitsRefProdVector[0]->offsetBPIX2());
 
     // Don't bother if less than 2 this
     if (trackingHits.size() < 2) {

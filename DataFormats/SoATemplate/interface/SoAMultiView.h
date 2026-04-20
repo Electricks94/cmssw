@@ -28,14 +28,13 @@
  * constructor—no dynamic addition of views is supported.
  */
 
-template <typename ConstView, uint8_t MaxSize = 5>
+template <typename ConstView, uint8_t MaxSize = 3>
 class SoAMultiView {
 public:
   using ConstElement = typename ConstView::const_element;
 
   SoAMultiView() = default;
 
-  // TODO try to get closer to MultiSpan
   template <typename Collections, typename Getter>
   SoAMultiView(const Collections& collections, Getter getter) {
     std::size_t offset = 0;

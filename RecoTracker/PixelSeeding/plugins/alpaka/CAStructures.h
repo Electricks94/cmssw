@@ -1,6 +1,7 @@
 #ifndef RecoTracker_PixelSeeding_plugins_alpaka_CAStructures_h
 #define RecoTracker_PixelSeeding_plugins_alpaka_CAStructures_h
 
+#include "DataFormats/SoATemplate/interface/SoAMultiView.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/SimpleVector.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/VecArray.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/HistoContainer.h"
@@ -47,6 +48,10 @@ namespace caStructures {
   using HitsView = ::reco::TrackingRecHitView;
   using HitModulesConstView = ::reco::HitModuleSoAConstView;
   using HitsConstView = ::reco::TrackingRecHitConstView;
+
+  // MultiViews for hits and modules
+  using ModulesMultiView = SoAMultiView<HitModulesConstView, 2>;
+  using HitsMultiView = SoAMultiView<HitsConstView, 2>;
 
   //Tracks data formats
   using TkSoAView = ::reco::TrackSoAView;
