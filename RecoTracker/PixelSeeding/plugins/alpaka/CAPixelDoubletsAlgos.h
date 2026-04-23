@@ -437,7 +437,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
             break;
           }
 
-          outerHitHisto->count(acc, oi - hh.getView(0).offsetBPIX2());
+          outerHitHisto->count(acc, oi - hh.view(0).offsetBPIX2());
           cells[ind].init(hh, pairLayerId, inner, outer, i, oi);
 #ifdef DOUBLETS_DEBUG
           printf("doublet: %d layerPair: %d inner: %d outer: %d i: %d oi: %d\n", ind, pairLayerId, inner, outer, i, oi);

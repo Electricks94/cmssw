@@ -2,70 +2,68 @@
 #define DataFormats_Portable_interface_SoAMultiView_h
 
 #include <array>
-#include <concepts>
-#include <cstddef>
-#include <stdexcept>
-#include <string>
-#include <type_traits>
+#include <cassert>
+#include <cstdint>
 
 #include "SoACommon.h"
 
 /**
- * @brief Aggregates multiple views into a single combined view, similar to `MultiVectorManager`.
+ * @brief Aggregates multiple ConstViews into a single combined view.
  *
- * `SoAMultiView` stores multiple views as references within an `std::array`, 
+ * `SoAMultiView` stores multiple ConstViews within an `std::array`, 
  * accompanied by an offset array to enable access via a global index. 
- * Thanks to the use of `std::array`, instances of `SoAMultiView` can be passed 
- * directly by value to kernels without requiring device memory copies.
+ * An `SoAMultiView` can be passed directly by value to kernels without 
+ * requiring device memory copies.
  *
- * This manager does not own or copy the underlying data; instead, it maintains lightweight 
- * references to existing views, minimizing memory overhead and construction cost.
- * However, since the underlying SoA memories are not contiguous, cacheline inefficiencies 
- * may arise. Therefore, `SoAMultiView` is best suited for use with large SoA views 
- * where such overhead is amortized.
+ * Since the underlying SoA memories are not contiguous, cacheline inefficiencies 
+ * may arise. Therefore, `SoAMultiView` is best suited for use with ConstViews, 
+ * when the underlying buffer is large enough to amortize the overhead of 
+ * non-contiguous access patterns when iterating over all elements.
  *
- * To ensure clarity and performance, SoA views must be provided explicitly through the 
- * constructor—no dynamic addition of views is supported.
  */
 
-template <typename ConstView, uint8_t MaxSize = 3>
+template <typename ConstView, int MaxSize = 3>
 class SoAMultiView {
 public:
   using ConstElement = typename ConstView::const_element;
+  using size_type = cms::soa::size_type;
 
   SoAMultiView() = default;
 
   template <typename Collections, typename Getter>
-  SoAMultiView(const Collections& collections, Getter getter) {
-    std::size_t offset = 0;
-    n_ = 0;
-
+  explicit SoAMultiView(const Collections& collections, Getter getter) {
     for (const auto& collection : collections) {
       assert(n_ < MaxSize && "Exceeded maximum number of views");
 
       views_[n_] = getter(collection);
-      offsets_[n_] = offset;
-
-      offset += views_[n_].metadata().size();
-      ++n_;
+      offsets_[n_] = totalSize_;
+      totalSize_ += static_cast<size_type>(views_[n_].metadata().size());
+      n_++;
     }
-
-    totalSize_ = offset;
   }
 
-  const SOA_HOST_DEVICE ConstElement operator[](const std::size_t globalIndex) const {
-    assert(globalIndex < totalSize_ && "Global index out of range");
+  SOA_HOST_DEVICE SOA_INLINE ConstElement operator[](size_type globalIndex) const {
+    if (globalIndex >= totalSize_ or globalIndex < 0) {
+      SOA_THROW_OUT_OF_RANGE("Out of range index in SoAMultiView::operator[]", globalIndex, totalSize_)
+    }
 
-    const std::size_t vi = viewIndex(globalIndex);
-    const std::size_t li = globalIndex - offsets_[vi];
+    const size_type vi = viewIndex(globalIndex);
+    const size_type li = globalIndex - offsets_[vi];
     return views_[vi][li];
+  }
+
+  SOA_HOST_DEVICE SOA_INLINE ConstView viewAt(size_type globalIndex) const {
+    if (globalIndex >= totalSize_ or globalIndex < 0) {
+      SOA_THROW_OUT_OF_RANGE("Out of range index in SoAMultiView::viewAt()", globalIndex, totalSize_)
+    }
+    return views_[viewIndex(globalIndex)];
   }
 
   template <typename Func, typename ReduceOp>
   SOA_HOST_DEVICE auto getScalar(Func func, ReduceOp reduceOp) {
     auto result = func(views_[0]);
 
-    for (std::size_t i = 1; i < n_; ++i) {
+    for (size_type i = 1; i < n_; ++i) {
       result = reduceOp(result, func(views_[i]));
     }
 
@@ -77,38 +75,29 @@ public:
     return func(views_[0]);
   }
 
-  SOA_HOST_DEVICE ConstView getView(const std::size_t globalIndex) const {
-    assert(globalIndex < totalSize_ && "Global index out of range");
-
-    const std::size_t vi = viewIndex(globalIndex);
-    return views_[vi];
+  SOA_HOST_DEVICE SOA_INLINE ConstView view(size_type i) const {
+    if (i >= n_ or i < 0) {
+      SOA_THROW_OUT_OF_RANGE("Out of range index in SoAMultiView::view()", i, n_)
+    }
+    return views_[i];
   }
 
-  SOA_HOST_DEVICE SOA_INLINE std::size_t viewIndex(const std::size_t globalIndex) const {
-    std::size_t result = 0;
+  SOA_HOST_DEVICE SOA_INLINE size_type size() const { return totalSize_; }
+  SOA_HOST_DEVICE SOA_INLINE size_type numViews() const { return n_; }
 
-    for (std::size_t i = 0; i < n_; ++i) {
+private:
+  SOA_HOST_DEVICE SOA_INLINE size_type viewIndex(size_type globalIndex) const {
+    size_type result = 0;
+    for (size_type i = 1; i < n_; ++i)
       result = (globalIndex >= offsets_[i]) ? i : result;
-    }
-
     return result;
   }
 
-  SOA_HOST_DEVICE SOA_INLINE std::size_t getLocalIndex(const std::size_t globalIndex) const {
-    const std::size_t vi = viewIndex(globalIndex);
-    const std::size_t li = globalIndex - offsets_[vi];
-
-    return li;
-  }
-
-  SOA_HOST_DEVICE SOA_INLINE std::size_t size() const { return totalSize_; }
-
-private:
   std::array<ConstView, MaxSize> views_;
-  std::array<std::size_t, MaxSize> offsets_;
-  std::size_t totalSize_{0};
+  std::array<size_type, MaxSize> offsets_;
+  size_type totalSize_{0};
 
-  std::size_t n_{0};
+  size_type n_{0};
 };
 
 #endif  // DataFormats_Portable_interface_SoAMultiView_h
