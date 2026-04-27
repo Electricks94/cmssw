@@ -1,0 +1,7 @@
+<use name="eigen"/>
+<use name="DataFormats/SoATemplate"/>
+<use name="HeterogeneousCore/AlpakaInterface"/>
+<use name="DataFormats/Common"/>
+<export>
+  <lib name="1"/>
+</export>

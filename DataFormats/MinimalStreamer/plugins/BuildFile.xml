@@ -1,0 +1,9 @@
+<library file="MinimalStreamerAnalyzer.cc MinimalStreamerProducer.cc" name="MinimalStreamerPlugins">
+  <use name="FWCore/Framework"/>
+  <use name="FWCore/ParameterSet"/>
+  <use name="FWCore/MessageLogger"/>
+  <use name="DataFormats/Portable"/>
+  <use name="DataFormats/SoATemplate"/>
+  <use name="eigen"/>
+    <flags EDM_PLUGIN="1"/>
+</library>    
