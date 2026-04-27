@@ -118,8 +118,10 @@ TEST_CASE("SoAMultiView") {
   deviceSoAs.push_back(d_soahdLayout1);
   deviceSoAs.push_back(d_soahdLayout2);
 
-  SoAPositionMultiView positionMultiView(deviceSoAs,
-                                         [](SoA layout) -> auto { return SoAPositionConstView(layout.position()); });
+  // for the position multi view we restrict the iteration range for both views
+  std::vector<int> usedSizesForMultiview(5, 7);
+  SoAPositionMultiView positionMultiView(
+      deviceSoAs, [](SoA layout) -> auto { return SoAPositionConstView(layout.position()); }, usedSizesForMultiview);
   SoAPCAMultiView pcaMultiView(deviceSoAs, [](SoA layout) -> auto { return SoAPCAConstView(layout.pca()); });
 
   float* d_outputPosition = nullptr;
@@ -132,7 +134,7 @@ TEST_CASE("SoAMultiView") {
 
   // check results
   for (cms::soa::size_type i = 0; i < positionMultiView.size(); ++i) {
-    auto si = i < sizes1[0] ? h_view1.position()[i] : h_view2.position()[i - sizes1[0]];
+    auto si = i < usedSizesForMultiview[0] ? h_view1.position()[i] : h_view2.position()[i - usedSizesForMultiview[0]];
     const float expected = si.x() * si.x() + si.y() * si.y() + si.z() * si.z();
     REQUIRE(h_outputPosition[i] == Catch::Approx(expected).margin(1e-5));
   }

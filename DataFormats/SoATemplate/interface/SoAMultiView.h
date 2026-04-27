@@ -42,6 +42,20 @@ public:
     }
   }
 
+  template <typename Collections, typename Getter, typename Sizes>
+  explicit SoAMultiView(const Collections& collections, Getter getter, const Sizes& sizes) {
+    for (const auto& collection : collections) {
+      assert(n_ < MaxSize && "Exceeded maximum number of views");
+
+      views_[n_] = getter(collection);
+      offsets_[n_] = totalSize_;
+      assert(static_cast<size_type>(sizes[n_]) <= static_cast<size_type>(views_[n_].metadata().size()) &&
+             "Provided size exceeds view metadata().size()");
+      totalSize_ += static_cast<size_type>(sizes[n_]);
+      n_++;
+    }
+  }
+
   SOA_HOST_DEVICE SOA_INLINE ConstElement operator[](size_type globalIndex) const {
     if (globalIndex >= totalSize_ or globalIndex < 0) {
       SOA_THROW_OUT_OF_RANGE("Out of range index in SoAMultiView::operator[]", globalIndex, totalSize_)
