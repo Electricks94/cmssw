@@ -57,21 +57,24 @@ public:
   }
 
   SOA_HOST_DEVICE SOA_INLINE ConstElement operator[](size_type globalIndex) const {
+    /*
     if (globalIndex >= totalSize_ or globalIndex < 0) {
       SOA_THROW_OUT_OF_RANGE("Out of range index in SoAMultiView::operator[]", globalIndex, totalSize_)
-    }
+    }*/
+    return viewIndex<0>(globalIndex);
 
-    const size_type vi = viewIndex(globalIndex);
-    const size_type li = globalIndex - offsets_[vi];
-    return views_[vi][li];
+    // const size_type vi = viewIndex(globalIndex);
+    // const size_type li = globalIndex - offsets_[vi];
+    // return views_[vi][li];
   }
 
+  /*
   SOA_HOST_DEVICE SOA_INLINE ConstView viewAt(size_type globalIndex) const {
     if (globalIndex >= totalSize_ or globalIndex < 0) {
       SOA_THROW_OUT_OF_RANGE("Out of range index in SoAMultiView::viewAt()", globalIndex, totalSize_)
     }
     return views_[viewIndex(globalIndex)];
-  }
+  }*/
 
   template <typename Func, typename ReduceOp>
   SOA_HOST_DEVICE auto getScalar(Func func, ReduceOp reduceOp) {
@@ -100,11 +103,25 @@ public:
   SOA_HOST_DEVICE SOA_INLINE size_type numViews() const { return n_; }
 
 private:
+
+  /*
   SOA_HOST_DEVICE SOA_INLINE size_type viewIndex(size_type globalIndex) const {
     size_type result = 0;
     for (size_type i = 1; i < n_; ++i)
       result = (globalIndex >= offsets_[i]) ? i : result;
     return result;
+  }*/
+
+  template<int I>
+  SOA_HOST_DEVICE SOA_INLINE ConstElement viewIndex(size_type idx) const {
+    if constexpr (I == MaxSize - 1) {
+      return views_[I][idx - offsets_[I]];
+    } else {
+      if (idx < offsets_[I + 1]) {
+        return views_[I][idx - offsets_[I]];
+      }
+        return viewIndex<I + 1>(idx);
+    }
   }
 
   std::array<ConstView, MaxSize> views_;
