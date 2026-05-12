@@ -81,7 +81,7 @@ namespace cms::soa {
         cms::soa::SoAParameters_ColumnType<cms::soa::SoAColumnType::scalar>::DataType<CPP_TYPE>;                       \
       SOA_HOST_DEVICE SOA_INLINE                                                                                       \
       BOOST_PP_CAT(ParametersTypeOf_, NAME) BOOST_PP_CAT(parametersOf_, NAME)() const {                                \
-        return  BOOST_PP_CAT(ParametersTypeOf_, NAME) (parent_.BOOST_PP_CAT(NAME, _));                                 \
+        return  BOOST_PP_CAT(ParametersTypeOf_, NAME) (cms::soa::non_const_ptr(parent_.BOOST_PP_CAT(NAME, _.data()))); \
       },                                                                                                               \
       /* Column */                                                                                                     \
       constexpr static cms::soa::SoAColumnType BOOST_PP_CAT(ColumnTypeOf_, NAME) = cms::soa::SoAColumnType::column;    \
@@ -89,7 +89,7 @@ namespace cms::soa {
         cms::soa::SoAParameters_ColumnType<cms::soa::SoAColumnType::column>::DataType<CPP_TYPE>;                       \
       SOA_HOST_DEVICE SOA_INLINE                                                                                       \
       BOOST_PP_CAT(ParametersTypeOf_, NAME) BOOST_PP_CAT(parametersOf_, NAME)() const {                                \
-        return  BOOST_PP_CAT(ParametersTypeOf_, NAME) (parent_.BOOST_PP_CAT(NAME, _));                                 \
+        return  BOOST_PP_CAT(ParametersTypeOf_, NAME) (cms::soa::non_const_ptr(parent_.BOOST_PP_CAT(NAME, _.data()))); \
       },                                                                                                               \
       /* Eigen column */                                                                                               \
       constexpr static cms::soa::SoAColumnType BOOST_PP_CAT(ColumnTypeOf_, NAME) = cms::soa::SoAColumnType::eigen;     \
@@ -97,7 +97,7 @@ namespace cms::soa {
           cms::soa::SoAParameters_ColumnType<cms::soa::SoAColumnType::eigen>::DataType<CPP_TYPE>;                      \
       SOA_HOST_DEVICE SOA_INLINE                                                                                       \
       BOOST_PP_CAT(ParametersTypeOf_, NAME) BOOST_PP_CAT(parametersOf_, NAME)() const {                                \
-        return BOOST_PP_CAT(ParametersTypeOf_, NAME) (parent_.BOOST_PP_CAT(NAME, _),                                   \
+        return BOOST_PP_CAT(ParametersTypeOf_, NAME) (cms::soa::non_const_ptr(parent_.BOOST_PP_CAT(NAME, _.data())),                                   \
                                                       parent_.BOOST_PP_CAT(NAME, Stride_));                            \
       }                                                                                                                \
   )                                                                                                                    \
@@ -120,6 +120,44 @@ namespace cms::soa {
               BOOST_PP_EMPTY(),                                                             \
               BOOST_PP_EXPAND(_DEFINE_METADATA_MEMBERS_IMPL TYPE_NAME))
 
+// clang-format off
+#define _DECLAR_EIGEN_SOA_TYPES_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)         \
+  _SWITCH_ON_TYPE(                                                             \
+      VALUE_TYPE,                                                              \
+      /* Scalar */                                                             \
+      ,                                                                        \
+      /* Column */                                                             \
+      ,                                                                        \
+      /* Eigen column */                                                       \
+      using BOOST_PP_CAT(NAME, SoAType) = RVecStructWithNMembers_Type<ROOT::RVec<CPP_TYPE::Scalar>>::Type<CPP_TYPE::RowsAtCompileTime * CPP_TYPE::ColsAtCompileTime>; \
+      using BOOST_PP_CAT(NAME, RecordType) = structWithNMembers_Type<CPP_TYPE::Scalar>::Type<CPP_TYPE::RowsAtCompileTime * CPP_TYPE::ColsAtCompileTime>; \
+  )
+// clang-format on
+
+#define _DECLAR_EIGEN_SOA_TYPES(R, DATA, TYPE_NAME)\
+  BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
+              BOOST_PP_EMPTY(),                                                             \
+              BOOST_PP_EXPAND(_DECLAR_EIGEN_SOA_TYPES_IMPL TYPE_NAME))
+
+// clang-format off
+#define _DECLAR_RECORD_TYPE_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)             \
+  _SWITCH_ON_TYPE(                                                             \
+      VALUE_TYPE,                                                              \
+      /* Scalar */                                                             \
+      CPP_TYPE BOOST_PP_CAT(NAME, _);                                          \
+      ,                                                                        \
+      /* Column */                                                             \
+      CPP_TYPE BOOST_PP_CAT(NAME, _);                                          \
+      ,                                                                        \
+      /* Eigen column */                                                       \
+      BOOST_PP_CAT(NAME, RecordType) BOOST_PP_CAT(NAME, _);                    \
+  )
+// clang-format on
+
+#define _DECLAR_RECORD_TYPE(R, DATA, TYPE_NAME)\
+  BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
+              BOOST_PP_EMPTY(),                                                             \
+              BOOST_PP_EXPAND(_DECLAR_RECORD_TYPE_IMPL TYPE_NAME))
 /**
  * Declare the spans of the const descriptor data member 
  */
@@ -218,12 +256,12 @@ namespace cms::soa {
 #define _DECLARE_MEMBER_TRIVIAL_CONSTRUCTION_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                    \
   _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
       /* Scalar */                                                                                                     \
-      (BOOST_PP_CAT(NAME, _)(nullptr)),                                                                                \
+      (BOOST_PP_CAT(NAME, _)()),                                                                                \
       /* Column */                                                                                                     \
-      (BOOST_PP_CAT(NAME, _)(nullptr)),                                                                                \
+      (BOOST_PP_CAT(NAME, _)()),                                                                                \
       /* Eigen column */                                                                                               \
       (BOOST_PP_CAT(NAME, ElementsWithPadding_)(0))                                                                    \
-      (BOOST_PP_CAT(NAME, _)(nullptr))                                                                                 \
+      (BOOST_PP_CAT(NAME, _)())                                                                                 \
       (BOOST_PP_CAT(NAME, Stride_)(0))                                                                                 \
 )
 // clang-format on
@@ -365,11 +403,11 @@ namespace cms::soa {
 #define _ASSIGN_SOA_COLUMN_OR_SCALAR_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                            \
   _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
       /* Scalar */                                                                                                     \
-      BOOST_PP_CAT(NAME, _) = reinterpret_cast<CPP_TYPE*>(_soa_impl_curMem);                                           \
+      BOOST_PP_CAT(NAME, _) = ROOT::RVec<CPP_TYPE>(reinterpret_cast<CPP_TYPE*>(_soa_impl_curMem), scalar_);            \
       _soa_impl_curMem += cms::soa::alignSize(sizeof(CPP_TYPE), alignment);                                            \
       ,                                                                                                                \
       /* Column */                                                                                                     \
-      BOOST_PP_CAT(NAME, _) = reinterpret_cast<CPP_TYPE*>(_soa_impl_curMem);                                           \
+      BOOST_PP_CAT(NAME, _) =  ROOT::RVec<CPP_TYPE>(reinterpret_cast<CPP_TYPE*>(_soa_impl_curMem), elements_);         \
       _soa_impl_curMem += cms::soa::alignSize(elements_ * sizeof(CPP_TYPE), alignment);                                \
       ,                                                                                                                \
       /* Eigen column */                                                                                               \
@@ -377,12 +415,13 @@ namespace cms::soa {
         / sizeof(CPP_TYPE::Scalar);                                                                                    \
       BOOST_PP_CAT(NAME, ElementsWithPadding_) = BOOST_PP_CAT(NAME, Stride_)                                           \
         *  CPP_TYPE::RowsAtCompileTime * CPP_TYPE::ColsAtCompileTime;                                                  \
-      BOOST_PP_CAT(NAME, _) = reinterpret_cast<CPP_TYPE::Scalar*>(_soa_impl_curMem);                                   \
-      _soa_impl_curMem += cms::soa::alignSize(elements_ * sizeof(CPP_TYPE::Scalar), alignment)                         \
-        * CPP_TYPE::RowsAtCompileTime * CPP_TYPE::ColsAtCompileTime;                                                   \
+      for(int i = 0; i<CPP_TYPE::RowsAtCompileTime * CPP_TYPE::ColsAtCompileTime; i++) {                               \
+        BOOST_PP_CAT(NAME, _)[i] = ROOT::RVec<CPP_TYPE::Scalar>(reinterpret_cast<CPP_TYPE::Scalar*>(_soa_impl_curMem), elements_);     \
+        _soa_impl_curMem += BOOST_PP_CAT(NAME, Stride_) * sizeof(CPP_TYPE::Scalar);                                    \
+      }                                                                                                                \
   )                                                                                                                    \
   if constexpr (alignmentEnforcement == AlignmentEnforcement::enforced)                                                \
-    cms::soa::detail::checkAlignment(BOOST_PP_CAT(NAME, _), alignment,                                                 \
+    cms::soa::detail::checkAlignment(BOOST_PP_CAT(NAME, _.data()), alignment,                                                 \
                                      "In layout constructor: misaligned column: " #NAME); \
   // clang-format on
 
@@ -483,14 +522,14 @@ namespace cms::soa {
 #define _DECLARE_SOA_DATA_MEMBER_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
 _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                            \
   /* Scalar */                                                                                                         \
-  CPP_TYPE* BOOST_PP_CAT(NAME, _) EDM_REFLEX_SIZE(scalar_) = nullptr;                                                  \
+  ROOT::RVec<CPP_TYPE> BOOST_PP_CAT(NAME, _);                                                                          \
   ,                                                                                                                    \
   /* Column */                                                                                                         \
-  CPP_TYPE * BOOST_PP_CAT(NAME, _) EDM_REFLEX_SIZE(elements_) = nullptr;                                               \
+  ROOT::RVec<CPP_TYPE> BOOST_PP_CAT(NAME, _);                                                                          \
   ,                                                                                                                    \
   /* Eigen column */                                                                                                   \
   size_type BOOST_PP_CAT(NAME, ElementsWithPadding_) = 0; /* For ROOT serialization */                                 \
-  CPP_TYPE::Scalar * BOOST_PP_CAT(NAME, _) EDM_REFLEX_SIZE(BOOST_PP_CAT(NAME, ElementsWithPadding_)) = nullptr;        \
+  BOOST_PP_CAT(NAME, SoAType) BOOST_PP_CAT(NAME, _);                                                                   \
   byte_size_type BOOST_PP_CAT(NAME, Stride_) = 0;                                                                      \
 )
 // clang-format on
@@ -1248,6 +1287,70 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
 #define _DO_RANGECHECK false
 #endif
 
+// TODO: make this nice
+// generate struct with N members for EigenSoALayout
+
+#define GENERATE_MEMBER(z, n, ARGS) \
+    T c##n;
+
+#define GEN_CASE(z, n, ARGS) case n: return c##n;
+
+template<typename T, cms::soa::size_type N>
+struct RVecStructWithNMembers;
+
+#define GENERATE_RVEC_STRUCT(z, n, ARGS)                  \
+template<typename T>                                      \
+struct RVecStructWithNMembers<T, n>                       \
+{                                                         \
+    BOOST_PP_REPEAT(n, GENERATE_MEMBER, ARGS)             \
+    T& operator[](cms::soa::size_type i)                  \
+    {                                                     \
+        switch(i) {                                       \
+            BOOST_PP_REPEAT(n, GEN_CASE, ARGS)            \
+        default: __builtin_unreachable();                 \
+        }                                                 \
+    };                                                    \
+    T::value_type* data() { return c0.data(); }           \
+    T::value_type const* data() const {return c0.data();} \
+};
+
+template<typename T, cms::soa::size_type N>
+struct structWithNMembers;
+
+#define GENERATE_STRUCT(z, n, ARGS)                       \
+template<typename T>                                      \
+struct structWithNMembers<T, n>                           \
+{                                                         \
+    BOOST_PP_REPEAT(n, GENERATE_MEMBER, ARGS)             \
+    T& operator[](cms::soa::size_type i)                  \
+    {                                                     \
+        switch(i) {                                       \
+            BOOST_PP_REPEAT(n, GEN_CASE, ARGS)            \
+        default: __builtin_unreachable();                 \
+        }                                                 \
+    };                                                    \
+    T* data() { return &c0; }           \
+    T const* data() const {return &c0;} \
+};
+
+// Generate for up to 15 rows*cols
+BOOST_PP_REPEAT_FROM_TO(1, 16, GENERATE_RVEC_STRUCT, _)
+BOOST_PP_REPEAT_FROM_TO(1, 16, GENERATE_STRUCT, _)
+
+// Matryoshka template to avoid commas inside macros
+template <typename T>
+struct RVecStructWithNMembers_Type {
+  template <cms::soa::size_type N>
+  using Type = RVecStructWithNMembers<T, N>;
+};
+
+template <typename T>
+struct structWithNMembers_Type {
+  template <cms::soa::size_type N>
+  using Type = structWithNMembers<T, N>;
+};
+
+
 /*
  * A macro defining a SoA layout (collection of scalars and columns of equal lengths)
  */
@@ -1277,6 +1380,11 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                                                                                                                        \
     template <cms::soa::SoAColumnType COLUMN_TYPE, class C>                                                            \
     using SoAConstValueWithConf = cms::soa::SoAConstValue<COLUMN_TYPE, C, conditionalAlignment>;                       \
+                                                                                                                       \
+    _ITERATE_ON_ALL(_DECLAR_EIGEN_SOA_TYPES, ~, __VA_ARGS__)                                                           \
+    struct RecordType{                                                                                                 \
+      _ITERATE_ON_ALL(_DECLAR_RECORD_TYPE, ~, __VA_ARGS__)                                                             \
+    };                                                                                                                 \
                                                                                                                        \
     template <CMS_SOA_BYTE_SIZE_TYPE VIEW_ALIGNMENT = cms::soa::CacheLineSize::defaultSize,                            \
             bool VIEW_ALIGNMENT_ENFORCEMENT = cms::soa::AlignmentEnforcement::relaxed,                                 \
@@ -1778,17 +1886,6 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       _ITERATE_ON_ALL(_COPY_VIEW_COLUMNS, ~, __VA_ARGS__)                                                              \
     }                                                                                                                  \
                                                                                                                        \
-    /* ROOT read streamer */                                                                                           \
-    template <typename T>                                                                                              \
-    void ROOTReadStreamer(T & onfile) {                                                                                \
-      _ITERATE_ON_ALL(_STREAMER_READ_SOA_DATA_MEMBER, ~, __VA_ARGS__)                                                  \
-    }                                                                                                                  \
-                                                                                                                       \
-    /* ROOT allocation cleanup */                                                                                      \
-    void ROOTStreamerCleaner() {                                                                                       \
-      /* This function should only be called from the PortableCollection ROOT streamer */                              \
-      _ITERATE_ON_ALL(_ROOT_FREE_SOA_COLUMN_OR_SCALAR, ~, __VA_ARGS__)                                                 \
-    }                                                                                                                  \
                                                                                                                        \
     /* Dump the SoA internal structure */                                                                              \
     template <typename T>                                                                                              \
@@ -1829,8 +1926,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
                                                                                                                        \
     /* Data members */                                                                                                 \
     std::byte* mem_ EDM_REFLEX_TRANSIENT;                                                                              \
-    size_type elements_;                                                                                               \
-    size_type const scalar_ = 1;                                                                                       \
+    size_type elements_ EDM_REFLEX_TRANSIENT;                                                                          \
+    size_type const scalar_ EDM_REFLEX_TRANSIENT = 1;                                                                  \
     byte_size_type byteSize_ EDM_REFLEX_TRANSIENT;                                                                     \
     /* TODO: The layout will contain SoAParametersImpl as members for the columns, which will allow the use of         \
     * more template helper functions. */                                                                               \

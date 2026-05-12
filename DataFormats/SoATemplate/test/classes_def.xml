@@ -1,14 +1,10 @@
 <lcgdict>
-  <class name="FakeSoA"/>
-  <ioread
-    sourceClass="FakeSoA"
-    targetClass="FakeSoA"
-    version="[1-]"
-    source="Int_t size_; uint16_t * a16_; uint32_t * b32_;"
-    target="buffer_"
-    embed="false">
-  <![CDATA[
-    newObj->allocateAndIoRead(onfile);
-  ]]>
-  </ioread>
+
+  <class name="RSoALayout<128, false>" rntupleSoARecord="RSoALayout<128, false>::RecordType" ClassVersion="2">
+   <version ClassVersion="2" checksum="1665522532"/>
+   </class>
+  <class name="RSoALayout<128, false>::RecordType" ClassVersion="2">
+  <version ClassVersion="2" checksum="1696818067"/>
+  </class>
+
 </lcgdict>

@@ -19,6 +19,8 @@
 
 #include "FWCore/Utilities/interface/typedefs.h"
 
+#include <ROOT/RVec.hxx>
+
 // CUDA attributes
 #if defined(__CUDACC__) || defined(__HIPCC__)
 #define SOA_HOST_ONLY __host__

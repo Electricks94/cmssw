@@ -1,6 +1,8 @@
 <use name="boost_header"/>
 <use name="FWCore/Reflection" source_only="1"/>
 <use name="FWCore/Utilities" source_only="1"/>
+<use name="root"/>
+<use name="rootvecops"/>
 <export>
   <lib name="1"/>
 </export>

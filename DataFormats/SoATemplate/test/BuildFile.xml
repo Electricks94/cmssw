@@ -84,6 +84,18 @@
   <use name="DataFormats/SoATemplate"/>
 </bin>
 
+<bin file="RSoATest.cc" name="RSoA_t">
+  <use name="root"/>
+  <use name="rootvecops"/>
+  <use name="rootntuple"/>
+  <use name="boost"/>
+  <use name="DataFormats/SoATemplate"/>
+</bin>
+
+<library file="" name="RSoALayoutDict">
+<use name="boost"/>
+</library>
+
 <!-- This test triggers a bug in ROOT, so it's kept disabled
 <bin file="SoAStreamer_t.cpp" name="SoAStreamer_t">
   <use name="root"/>
@@ -92,4 +104,3 @@
 -->
 
 <!-- dictionaries for FakeSoA -->
-<library file="" name="FakeSoADict"/>
