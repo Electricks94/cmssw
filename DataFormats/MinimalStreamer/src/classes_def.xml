@@ -1,8 +1,37 @@
 <lcgdict>
   <class name="MinimalStreamerHostCollection"/>
 
-  <class name="MinimalStreamerHostCollection::Layout"/>
-  <class name="MinimalStreamerSoATemplate<128, false>"/>
+  <class name="MinimalStreamerSoATemplate<128, false>" ClassVersion="3">
+    <version ClassVersion="2" checksum="3751258482"/>
+    <version ClassVersion="3" checksum="3192427886"/>
+  </class>
+  <ioread sourceClass="MinimalStreamerSoATemplate<128, false>" targetClass="MinimalStreamerSoATemplate<128, false>" version="[-2]" source="cms::soa::size_type elements_; float *x_" target="x_">
+    <![CDATA[printf("x_ = %p\n", x_);
+             x_ = new double[onfile.elements_];
+             for (cms::soa::size_type i = 0; i < onfile.elements_; i++) {
+                x_[i] = onfile.x_[i] + 1;
+             }]]>
+  </ioread>
+  <ioread sourceClass="MinimalStreamerSoATemplate<128, false>" targetClass="MinimalStreamerSoATemplate<128, false>" version="[-2]" source="cms::soa::size_type elements_; float *y_" target="y_">
+    <![CDATA[printf("y_ = %p\n", y_);
+             y_ = new double[onfile.elements_];
+             for (cms::soa::size_type i = 0; i < onfile.elements_; i++) {
+                y_[i] = onfile.y_[i] * onfile.y_[i];
+             }]]>
+  </ioread>
+  <ioread sourceClass="MinimalStreamerSoATemplate<128, false>" targetClass="MinimalStreamerSoATemplate<128, false>" version="[-2]" source="cms::soa::size_type elements_; float *z_" target="z_">
+    <![CDATA[printf("z_ = %p\n", z_);
+             z_ = new double[onfile.elements_];
+             for (cms::soa::size_type i = 0; i < onfile.elements_; i++) {
+                z_[i] = 2 * onfile.z_[i] + 1;
+             }]]>
+  </ioread>
+    <ioread sourceClass="MinimalStreamerSoATemplate<128, false>" targetClass="MinimalStreamerSoATemplate<128, false>" version="[-2]" source="cms::soa::size_type scalar_; float *s1_" target="s1_">
+    <![CDATA[printf("s1_ = %p\n", s1_);
+             s1_ = new double[onfile.scalar_];
+             s1_[0] = 2 * onfile.s1_[0] + 1;
+             ]]>
+  </ioread>
 
   <class name="edm::Wrapper<MinimalStreamerHostCollection>" splitLevel="0"/>
 </lcgdict>

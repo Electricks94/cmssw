@@ -35,6 +35,10 @@ void MinimalStreamerProducer::produce(edm::StreamID iID, edm::Event& event, cons
     view.z()[i] = 3.0f;
   }
 
+  view.s1() = 4.0f;
+  view.s2() = 5.0f;
+  view.s3() = 6.0f;
+
 
   event.put(std::move(product), "TestProduct");
   printf("MinimalStreamerProducer finished successfully\n");

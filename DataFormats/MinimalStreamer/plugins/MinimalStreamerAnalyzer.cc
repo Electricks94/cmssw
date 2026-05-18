@@ -25,6 +25,9 @@ public:
       std::cout << "MinimalStreamerAnalyzer idx: " << i
                 << ", x " << view.x()[i] << ", y " << view.y()[i] << ", z " << view.z()[i] << std::endl;
     }
+
+    std::cout << "MinimalStreamerAnalyzer scalars: s1 " << view.s1() << ", s2 " << view.s2() << ", s3 " << view.s3()
+              << std::endl;
   }
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
