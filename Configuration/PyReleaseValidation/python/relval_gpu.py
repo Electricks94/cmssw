@@ -11,6 +11,7 @@ workflows = Matrix()
 # the name of step1 will be used
 
 from Configuration.PyReleaseValidation.relval_upgrade import workflows as _upgrade_workflows
+from Configuration.PyReleaseValidation.relval_standard import workflows as _standard_workflows
 
 # to get the default upgrade geometry
 from Configuration.PyReleaseValidation.relval_Run4 import prefixDet
@@ -72,6 +73,11 @@ for numWF in numWFIB:
     if not numWF in _upgrade_workflows:
         continue
     workflows[numWF] = _upgrade_workflows[numWF]
+
+for numWF in numWFIB:
+    if not numWF in _standard_workflows:
+        continue
+    workflows[numWF] = _standard_workflows[numWF]
 
 # data WFs to run in IB:
 
