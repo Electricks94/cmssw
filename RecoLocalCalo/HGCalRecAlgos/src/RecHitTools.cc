@@ -140,8 +140,13 @@ void RecHitTools::setGeometry(const CaloGeometry& geom) {
     wmaxEE = 1 + (geomEE->topology().dddConstants()).waferMax();
     auto geomFH =
         static_cast<const HGCalGeometry*>(geom_->getSubdetectorGeometry(DetId::Forward, ForwardSubdetector::HGCHEF));
-    fhOffset_ = (geomFH->topology().dddConstants()).getLayerOffset();
-    fhLastLayer_ = fhOffset_ + (geomFH->topology().dddConstants()).layers(true);
+    if (geomFH) {
+      fhOffset_ = (geomFH->topology().dddConstants()).getLayerOffset();
+      fhLastLayer_ = fhOffset_ + (geomFH->topology().dddConstants()).layers(true);
+    } else {
+      fhOffset_=0;
+      fhLastLayer_ =0;
+    }
     bhOffset_ = fhLastLayer_;
     bhFirstLayer_ = bhOffset_ + 1;
     wmaxFH = 1 + (geomFH->topology().dddConstants()).waferMax();
