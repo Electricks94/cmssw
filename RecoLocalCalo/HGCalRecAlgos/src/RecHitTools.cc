@@ -144,8 +144,8 @@ void RecHitTools::setGeometry(const CaloGeometry& geom) {
       fhOffset_ = (geomFH->topology().dddConstants()).getLayerOffset();
       fhLastLayer_ = fhOffset_ + (geomFH->topology().dddConstants()).layers(true);
     } else {
-      fhOffset_=0;
-      fhLastLayer_ =0;
+      fhOffset_ = 0;
+      fhLastLayer_ = 0;
     }
     bhOffset_ = fhLastLayer_;
     bhFirstLayer_ = bhOffset_ + 1;
