@@ -19,7 +19,7 @@ GENERATE_SOA_LAYOUT(SoAPositionTemplate,
 using SoAPosition = SoAPositionTemplate<>;
 using SoAPositionView = SoAPosition::View;
 using SoAPositionConstView = SoAPosition::ConstView;
-using SoAPositionMultiView = SoAMultiView<SoAPositionConstView, 2>;
+using SoAPositionMultiView = SoAMultiView<SoAPositionConstView, 5>;
 
 GENERATE_SOA_LAYOUT(SoAPCATemplate,
                     SOA_COLUMN(float, vector_1),
@@ -30,7 +30,7 @@ GENERATE_SOA_LAYOUT(SoAPCATemplate,
 using SoAPCA = SoAPCATemplate<>;
 using SoAPCAView = SoAPCA::View;
 using SoAPCAConstView = SoAPCA::ConstView;
-using SoAPCAMultiView = SoAMultiView<SoAPCAConstView, 2>;
+using SoAPCAMultiView = SoAMultiView<SoAPCAConstView, 5>;
 
 GENERATE_SOA_BLOCKS(SoABlocksTemplate, SOA_BLOCK(position, SoAPositionTemplate), SOA_BLOCK(pca, SoAPCATemplate))
 
