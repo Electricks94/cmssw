@@ -8,5 +8,6 @@
     <use name="HeterogeneousCore/CUDAUtilities"/>
     <use name="HeterogeneousTest/CUDADevice"/>
     <flags EDM_PLUGIN="1"/>
+    <flags CXXFLAGS="-lcufile"/>
   </library>
 </iftool>
