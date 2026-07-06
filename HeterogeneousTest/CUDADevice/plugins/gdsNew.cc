@@ -200,7 +200,50 @@ int main(int argc, char** argv) {
     CUDA_CHECK(cudaFreeHost(hostData));
     cuFileDriverClose();
 
-}
+} else {
+    // cpu write
+    std::ofstream outFile(hostOutputFilename, std::ios::binary);
+    if (!outFile.is_open()) { std::cerr << "cannot open host output file\n"; return 1; }
+ 
+    auto t0 = std::chrono::high_resolution_clock::now();
+    CUDA_CHECK(cudaMemcpy(hostData, devPtr, bytes, cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaDeviceSynchronize());
+    outFile.write(reinterpret_cast<const char*>(hostData), bytes);
+    auto t1 = std::chrono::high_resolution_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    outFile.close();
+    report("Time storage CPU", bytes, ms);
+ 
+    // cpu read
+    float* hostRead = nullptr;
+    CUDA_CHECK(cudaMallocHost((void**)&hostRead, bytes));
+    float* devReadPtr = nullptr;
+    CUDA_CHECK(cudaMalloc((void**)&devReadPtr, bytes));
+    CUDA_CHECK(cudaDeviceSynchronize());
+ 
+    std::ifstream inFile(hostOutputFilename, std::ios::binary);
+    auto r0 = std::chrono::high_resolution_clock::now();
+    inFile.read(reinterpret_cast<char*>(hostRead), bytes);
+    CUDA_CHECK(cudaMemcpy(devReadPtr, hostRead, bytes, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaDeviceSynchronize());
+    auto r1 = std::chrono::high_resolution_clock::now();
+    double rms = std::chrono::duration<double, std::milli>(r1 - r0).count();
+    inFile.close();
+    report("Time read CPU", bytes, rms);
+ 
+    if (std::memcmp(hostRead, reference.data(), bytes) == 0)
+      std::cout << "CPU data verification success\n";
+    else
+      std::cout << "CPU data verification FAILED\n";
+ 
+    CUDA_CHECK(cudaFree(devReadPtr));
+    CUDA_CHECK(cudaFree(devPtr));
+    CUDA_CHECK(cudaFreeHost(hostRead));
+    CUDA_CHECK(cudaFreeHost(hostData));
+  }
+ 
+  std::cout << "done\n";
+  return 0;
 
 
 }
