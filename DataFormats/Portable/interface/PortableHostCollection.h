@@ -156,7 +156,16 @@ public:
     newObj->~PortableHostCollection();
 
     // construct in-place a new collection, with the known size, using the global "host" object returned by cms::alpakatools::host()
-    new (newObj) PortableHostCollection(cms::alpakatools::host(), layout.metadata().size());
+    auto sizes = layout.metadata().size();
+    // sizes[1]++;
+
+    std::cout << "ROOTReadStreamer: sizes: ";
+    for (auto s : sizes) {
+      std::cout << s << " ";
+    }
+    std::cout << std::endl;
+    
+    new (newObj) PortableHostCollection(cms::alpakatools::host(), sizes);
 
     // copy the data from the on-file layout to the new collection
     newObj->layout_.ROOTReadStreamer(layout);

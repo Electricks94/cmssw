@@ -1,0 +1,10 @@
+<library file="AssociationCollectionProducer.cc AssociationCollectionAnalyser.cc" name="AssociationCollectionPlugins">
+  <use name="FWCore/Framework"/>
+  <use name="FWCore/ParameterSet"/>
+  <use name="FWCore/MessageLogger"/>
+  <use name="DataFormats/Portable"/>
+  <use name="DataFormats/SoATemplate"/>
+  <use name="DataFormats/TICL"/>
+  <use name="eigen"/>
+    <flags EDM_PLUGIN="1"/>
+</library>  

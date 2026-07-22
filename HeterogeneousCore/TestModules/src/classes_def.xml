@@ -1,0 +1,15 @@
+<lcgdict>
+  <!-- ::Layout alias must be listed before the aliased-to type -->
+  <class name="AssociationCollection::Layout"/>
+
+  <class name="ticl::AssociationMapLayout<unsigned int,unsigned int>::ContentBuffersLayout<128,false>"/>
+  <class name="ticl::AssociationMapLayout<unsigned int,unsigned int>::OffsetsLayout<128,false>"/>
+
+  <class name="ticl::AssociationMapLayout<unsigned int,unsigned int>::OffsetBufferLayout<128,false>"/>
+  
+
+  <class name="ticl::AssociationMapLayout<unsigned int,unsigned int>"/>
+  <class name="AssociationCollection" />
+  <class name="edm::Wrapper<AssociationCollection>" splitLevel="0"/>
+
+</lcgdict>

@@ -30,7 +30,7 @@ namespace ticl {
 
     public:
       OffsetsLayout() : Parent() {}
-      OffsetsLayout(std::byte* mem, cms::soa::size_type elements) : Parent(mem, elements) {}
+      OffsetsLayout(std::byte* mem, cms::soa::size_type elements) : Parent(mem, elements + 1) {}
 
       static constexpr auto computeDataSize(std::size_t size) {
         return Parent::computeDataSize(size + 1);
