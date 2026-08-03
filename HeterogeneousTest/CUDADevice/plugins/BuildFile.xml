@@ -7,6 +7,9 @@
     <use name="HeterogeneousCore/CUDAServices"/>
     <use name="HeterogeneousCore/CUDAUtilities"/>
     <use name="HeterogeneousTest/CUDADevice"/>
+    <use name="IOPool/Streamer"/>              <!-- NEW: FRDFileHeader / FRDEventMessage -->
+    <flags LDFLAGS="-lcufile"/>                <!-- NEW: cuFile -->
     <flags EDM_PLUGIN="1"/>
+    <flags CXXFLAGS="-lcufile"/>
   </library>
 </iftool>
