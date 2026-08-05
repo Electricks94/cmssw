@@ -7,8 +7,14 @@
     <use name="HeterogeneousCore/CUDAServices"/>
     <use name="HeterogeneousCore/CUDAUtilities"/>
     <use name="HeterogeneousTest/CUDADevice"/>
-    <use name="IOPool/Streamer"/>              <!-- NEW: FRDFileHeader / FRDEventMessage -->
-    <flags LDFLAGS="-lcufile"/>                <!-- NEW: cuFile -->
+    <use name="IOPool/Streamer"/>             <!-- NEW: FRDFileHeader / FRDEventMessage -->
+    
+    <!-- ADD THESE THREE LINES -->
+    <use name="FWCore/Sources"/>
+    <use name="DataFormats/FEDRawData"/>
+    <use name="DataFormats/Common"/>
+
+    <flags LDFLAGS="-lcufile"/>               <!-- NEW: cuFile -->
     <flags EDM_PLUGIN="1"/>
     <flags CXXFLAGS="-lcufile"/>
   </library>
