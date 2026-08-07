@@ -21,6 +21,9 @@
 #include "HeterogeneousCore/CUDAServices/interface/CUDAInterface.h"
 #include "HeterogeneousCore/CUDAUtilities/interface/cudaCheck.h"
 
+using namespace cms::cuda;
+#define cudaCheck(ARG) cms::cuda::cudaCheck(__FILE__, __LINE__, __func__, (ARG))
+
 class CUDAstorage : public edm::global::EDAnalyzer<> {
 public:
   explicit CUDAstorage(edm::ParameterSet const& config);

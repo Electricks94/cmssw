@@ -37,6 +37,10 @@
 #include "IOPool/Streamer/interface/FRDEventMessage.h"
 #include "IOPool/Streamer/interface/FRDFileHeader.h"
 
+
+using namespace cms::cuda;
+#define cudaCheck(ARG) cms::cuda::cudaCheck(__FILE__, __LINE__, __func__, (ARG))
+
 class GDSRawFileReaderNew : public edm::RawInputSource {
 public:
   explicit GDSRawFileReaderNew(edm::ParameterSet const& pset, edm::InputSourceDescription const& desc);

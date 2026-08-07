@@ -14,7 +14,7 @@ max_events = int(sys.argv[3]) if len(sys.argv) > 3 else 10
 process = cms.Process('GDSSOURCE')
 process.load('HeterogeneousCore.CUDACore.ProcessAcceleratorCUDA_cfi')
 
-process.source = cms.Source('GDSRawFileReaderNew',
+process.source = cms.Source('GDSRawFileReaderPure',
     inputFile = cms.string(input_file),
     useGDS = cms.bool(gds_flag)
 )

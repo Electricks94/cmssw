@@ -8,11 +8,6 @@
 using namespace cms::cuda;
 #define cudaCheck(ARG) cms::cuda::cudaCheck(__FILE__, __LINE__, __func__, (ARG))
 
-// Constants transcribed directly from the CMSSW headers so the kernel reads
-// exactly the same bits the host FRDEventMsgView / FEDHeader / FEDTrailer read:
-//   IOPool/Streamer/interface/FRDEventMessage.h  (FRDEventHeader_V6, 24 bytes)
-//   DataFormats/FEDRawData/src/fed_header.h       (fedh_t, 8 bytes)
-//   DataFormats/FEDRawData/src/fed_trailer.h      (fedt_t, 8 bytes)
 
 namespace {
 
@@ -50,8 +45,8 @@ namespace {
     return uint32_t(p[0]) | (uint32_t(p[1]) << 8) | (uint32_t(p[2]) << 16) | (uint32_t(p[3]) << 24);
   }
 
-  // ---------- PHASE 1: sequential FRD event boundary walk (one thread) ----------
-  // Serial by nature: each header's eventSize gives the offset of the next header.
+  //  PHASE 1: sequential FRD event boundary walk (one thread) 
+  // Serial- each header's eventSize gives the offset of the next header.
   __global__ void scanEventsKernel(const unsigned char* chunk,
                                    uint64_t chunkSize,
                                    uint64_t firstHeaderOffset,
@@ -127,7 +122,7 @@ namespace {
     e.truncated = truncated;
   }
 
-  // ---------- PHASE 2: count FEDs per event (one thread per event) ----------
+  // PHASE 2: count FEDs per event (one thread per event) 
   __global__ void countFedsKernel(const unsigned char* chunk, frdscan::EventRecord* events, uint32_t nEvents) {
     const uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= nEvents)
@@ -135,10 +130,6 @@ namespace {
     walkFeds(chunk, events[i], nullptr);
   }
 
-  // ---------- exclusive prefix sum over per-event FED counts (device side) ----------
-  // One thread: nEvents is small (hundreds per chunk), so a serial scan costs
-  // microseconds and keeps the entire index on the GPU. Only totalFeds crosses
-  // to the host, and only because cudaMalloc needs a size.
   __global__ void prefixSumKernel(frdscan::EventRecord* events, uint32_t nEvents, uint32_t* totalOut) {
     if (threadIdx.x != 0 || blockIdx.x != 0)
       return;
@@ -150,7 +141,7 @@ namespace {
     *totalOut = running;
   }
 
-  // ---------- PHASE 3: fill compact FED array (one thread per event) ----------
+  //  PHASE 3: fill compact FED array (one thread per event) 
   // fedIndexBase has been set on the host via an exclusive prefix sum of nFeds.
   __global__ void fillFedsKernel(const unsigned char* chunk,
                                  frdscan::EventRecord* events,
