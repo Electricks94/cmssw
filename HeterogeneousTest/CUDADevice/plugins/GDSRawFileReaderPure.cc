@@ -38,7 +38,8 @@
 #include "IOPool/Streamer/interface/FRDEventMessage.h"
 #include "IOPool/Streamer/interface/FRDFileHeader.h"
 
-#include "FRDScan.h"
+#include "HeterogeneousTest/CUDADevice/interface/FRDScan.h"
+#include "HeterogeneousTest/CUDADevice/interface/GDSRawDataDeviceRef.h"
 
 using namespace cms::cuda;
 #define cudaCheck(ARG) cms::cuda::cudaCheck(__FILE__, __LINE__, __func__, (ARG))
@@ -75,10 +76,12 @@ private:
   unsigned char* hostMirror_ = nullptr;  // byte source for the host product; removed with the device-resident product
 
   std::vector<frdscan::EventRecord> events_;  // event table produced by the device scan
-  std::vector<frdscan::FedEntry> feds_;       // flat FED index produced by the device scan
+  std::vector<frdscan::FedEntry> feds_;       // host copy: legacy product + validation only
+  frdscan::FedEntry* d_feds_ = nullptr;       // the SAME index, kept RESIDENT on the device
   size_t nextEvent_ = 0;
 
   const edm::DaqProvenanceHelper daqProvenanceHelper_{edm::TypeID(typeid(FEDRawDataCollection))};
+  const edm::DaqProvenanceHelper deviceProvenanceHelper_{edm::TypeID(typeid(gdsraw::RawDataDeviceRef))};
   edm::ProcessHistoryID processHistoryID_;
 };
 
@@ -109,6 +112,7 @@ GDSRawFileReaderPure::GDSRawFileReaderPure(edm::ParameterSet const& pset, edm::I
             << lumiSection_ << " events " << events_.size() << std::endl;
 
   processHistoryID_ = daqProvenanceHelper_.daqInit(productRegistryUpdate(), processHistoryRegistryForUpdate());
+  deviceProvenanceHelper_.daqInit(productRegistryUpdate(), processHistoryRegistryForUpdate());
 
   setRunAuxiliary(new edm::RunAuxiliary(runNumber_, nowTimestamp(), edm::Timestamp::invalidTimestamp()));
   setLuminosityBlockAuxiliary(
@@ -119,6 +123,8 @@ GDSRawFileReaderPure::GDSRawFileReaderPure(edm::ParameterSet const& pset, edm::I
 }
 
 GDSRawFileReaderPure::~GDSRawFileReaderPure() {
+  if (d_feds_)
+    cudaFree(d_feds_);
   if (devPtr_) {
     if (useGDS_)
       cuFileBufDeregister(devPtr_);
@@ -242,7 +248,7 @@ void GDSRawFileReaderPure::scanAndCopyIndex() {
     cudaCheck(cudaMemcpy(feds_.data(), sr.d_feds, size_t(sr.totalFeds) * sizeof(frdscan::FedEntry),
                          cudaMemcpyDeviceToHost));
   cudaFree(sr.d_events);
-  cudaFree(sr.d_feds);
+  d_feds_ = sr.d_feds;  // NOT freed: the device product points at this
 
   std::chrono::duration<double, std::milli> elapsed = end - start;
   std::cout << "GDSRawFileReaderPure: device scan produced " << sr.nEvents << " events, " << sr.totalFeds
@@ -279,6 +285,12 @@ void GDSRawFileReaderPure::read(edm::EventPrincipal& eventPrincipal) {
   edm::EventAuxiliary aux(id, processGUID(), nowTimestamp(), isRealData, edm::EventAuxiliary::PhysicsTrigger);
   aux.setProcessHistoryID(processHistoryID_);
   makeEvent(eventPrincipal, aux);
+
+  // the device product: two pointers and a count, no payload bytes
+  auto deviceRef = std::make_unique<gdsraw::RawDataDeviceRef>(devPtr_, d_feds_ + e.fedIndexBase, e.nFeds);
+  std::unique_ptr<edm::WrapperBase> devp(new edm::Wrapper<gdsraw::RawDataDeviceRef>(std::move(deviceRef)));
+  eventPrincipal.put(
+      deviceProvenanceHelper_.productDescription(), std::move(devp), deviceProvenanceHelper_.dummyProvenance());
 
   std::unique_ptr<edm::WrapperBase> edp(new edm::Wrapper<FEDRawDataCollection>(std::move(rawData)));
   eventPrincipal.put(daqProvenanceHelper_.productDescription(), std::move(edp), daqProvenanceHelper_.dummyProvenance());

@@ -4,18 +4,16 @@
     <use name="FWCore/Framework"/>
     <use name="FWCore/ParameterSet"/>
     <use name="FWCore/ServiceRegistry"/>
+    <use name="FWCore/Sources"/>
+    <use name="DataFormats/Common"/>
+    <use name="DataFormats/FEDRawData"/>
+    <use name="DataFormats/Provenance"/>
+    <use name="IOPool/Streamer"/>
     <use name="HeterogeneousCore/CUDAServices"/>
     <use name="HeterogeneousCore/CUDAUtilities"/>
     <use name="HeterogeneousTest/CUDADevice"/>
-    <use name="IOPool/Streamer"/>             <!-- NEW: FRDFileHeader / FRDEventMessage -->
-    
-    <!-- ADD THESE THREE LINES -->
-    <use name="FWCore/Sources"/>
-    <use name="DataFormats/FEDRawData"/>
-    <use name="DataFormats/Common"/>
-
-    <flags LDFLAGS="-lcufile"/>               <!-- NEW: cuFile -->
+    <flags LDFLAGS="-lcufile"/>
     <flags EDM_PLUGIN="1"/>
-    <flags CXXFLAGS="-lcufile"/>
   </library>
 </iftool>
+
