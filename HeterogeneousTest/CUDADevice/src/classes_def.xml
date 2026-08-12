@@ -1,0 +1,8 @@
+<lcgdict>
+  <class name="gdsraw::RawDataDeviceRef">
+    <field name="chunk_" transient="true"/>
+    <field name="feds_" transient="true"/>
+  </class>
+  <class name="edm::Wrapper&lt;gdsraw::RawDataDeviceRef&gt;"/>
+</lcgdict>
+
