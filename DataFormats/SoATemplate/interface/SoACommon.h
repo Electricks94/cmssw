@@ -833,8 +833,6 @@ namespace cms::soa {
     SOA_HOST_DEVICE SOA_INLINE size_type size() const { return proxy_.size(); }
 
   private:
-    // value_element* base = nullptr;
-    // size_type length = 0;
     std::span<value_element> proxy_;
   };
 
@@ -850,8 +848,6 @@ namespace cms::soa {
     SOA_HOST_DEVICE SOA_INLINE size_type size() const { return proxy_.size(); }
 
   private:
-    // const value_element* proxy_ = nullptr;
-    // size_type length = 0;
     std::span<const value_element> proxy_;
   };
 
