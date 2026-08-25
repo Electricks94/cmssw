@@ -1,3 +1,6 @@
+#include <cstdio>
+#include <cstdlib>
+
 #include <cuda_runtime.h>
 
 #include "HeterogeneousTest/CUDADevice/interface/GDSPixelDecode.h"
@@ -6,11 +9,11 @@
 using namespace cms::cuda;
 #define cudaCheck(ARG) cms::cuda::cudaCheck(__FILE__, __LINE__, __func__, (ARG))
 
-// Bit layout transcribed from:
-//   DataFormats/SiPixelDigi/interface/SiPixelDigiConstants.h
-//   RecoLocalTracker/SiPixelClusterizer/plugins/alpaka/SiPixelRawToClusterKernel.h
-//
-//   word31..26 LINK | 25..21 ROC | 20..16 DCOL | 15..8 PXID | 7..0 ADC
+// Bit layout from DataFormats/SiPixelDigi/interface/SiPixelDigiConstants.h:
+//   word 31..26 LINK | 25..21 ROC | 20..16 DCOL | 15..8 PXID | 7..0 ADC
+// All work runs on cudaStreamPerThread. Scratch memory comes from a caller-owned
+// Workspace allocated once per EDM stream: per-event allocation dominated the
+// profile (88% of CUDA API time) while the GPU sat idle.
 
 namespace {
 
@@ -21,10 +24,10 @@ namespace {
   constexpr uint32_t kLinkBits = 6;
 
   constexpr uint32_t kAdcShift = 0;
-  constexpr uint32_t kPxidShift = kAdcShift + kAdcBits;    // 8
-  constexpr uint32_t kDcolShift = kPxidShift + kPxidBits;  // 16
-  constexpr uint32_t kRocShift = kDcolShift + kDcolBits;   // 21
-  constexpr uint32_t kLinkShift = kRocShift + kRocBits;    // 26
+  constexpr uint32_t kPxidShift = kAdcShift + kAdcBits;
+  constexpr uint32_t kDcolShift = kPxidShift + kPxidBits;
+  constexpr uint32_t kRocShift = kDcolShift + kDcolBits;
+  constexpr uint32_t kLinkShift = kRocShift + kRocBits;
 
   constexpr uint32_t kAdcMask = ~(~uint32_t(0) << kAdcBits);
   constexpr uint32_t kPxidMask = ~(~uint32_t(0) << kPxidBits);
@@ -55,7 +58,6 @@ namespace {
     const uint32_t pxid = (ww >> kPxidShift) & kPxidMask;
     const uint32_t adc = (ww >> kAdcShift) & kAdcMask;
 
-    // ROC-local coordinates (LocalPixel::rocRow/rocCol in the production code)
     const uint32_t rocRow = kNumRowsInRoc - pxid / 2;
     const uint32_t rocCol = dcol * 2 + pxid % 2;
 
@@ -67,10 +69,8 @@ namespace {
     d.adc = adc;
     d.fedId = uint32_t(fedIndex[i / 2]) + minFedId;
 
-    // classify: counters[0]=valid 1=badLink 2=badRoc 3=badCoord 4=zeroAdc
-    if (ww == 0) {
-      return;  // padding word, not counted either way
-    }
+    if (ww == 0)
+      return;  // padding word
     if (link == 0 || link > kMaxLink) {
       atomicAdd(&counters[1], 1u);
       return;
@@ -94,29 +94,48 @@ namespace {
 
 namespace gdsdecode {
 
+  void allocateWorkspace(Workspace& ws, uint32_t maxWords) {
+    ws.maxWords = maxWords;
+    cudaCheck(cudaMalloc(&ws.d_digis, size_t(maxWords) * sizeof(Digi)));
+    cudaCheck(cudaMalloc(&ws.d_counters, 5 * sizeof(uint32_t)));
+  }
+
+  void freeWorkspace(Workspace& ws) {
+    if (ws.d_digis)
+      cudaFree(ws.d_digis);
+    if (ws.d_counters)
+      cudaFree(ws.d_counters);
+    ws = Workspace{};
+  }
+
   DecodeResult decodeWords(const uint32_t* d_words,
                            const uint8_t* d_fedIndex,
                            uint32_t nWords,
-                           uint32_t minFedId) {
+                           uint32_t minFedId,
+                           Workspace& ws) {
     DecodeResult r;
     r.nWords = nWords;
     if (nWords == 0)
       return r;
+    if (nWords > ws.maxWords) {
+      printf("decodeWords: nWords %u exceeds workspace maxWords %u -- raise maxWords\n", nWords, ws.maxWords);
+      abort();
+    }
 
-    cudaCheck(cudaMalloc(&r.d_digis, size_t(nWords) * sizeof(Digi)));
-    uint32_t* d_counters = nullptr;
-    cudaCheck(cudaMalloc(&d_counters, 5 * sizeof(uint32_t)));
-    cudaCheck(cudaMemset(d_counters, 0, 5 * sizeof(uint32_t)));
+    cudaStream_t stream = cudaStreamPerThread;
+
+    r.d_digis = ws.d_digis;  // borrowed, not owned
+    uint32_t* d_counters = ws.d_counters;
+    cudaCheck(cudaMemsetAsync(d_counters, 0, 5 * sizeof(uint32_t), stream));
 
     const int block = 256;
     const int grid = (nWords + block - 1) / block;
-    decodeKernel<<<grid, block>>>(d_words, d_fedIndex, nWords, minFedId, r.d_digis, d_counters);
+    decodeKernel<<<grid, block, 0, stream>>>(d_words, d_fedIndex, nWords, minFedId, r.d_digis, d_counters);
     cudaCheck(cudaGetLastError());
-    cudaCheck(cudaDeviceSynchronize());
 
     uint32_t h[5] = {0, 0, 0, 0, 0};
-    cudaCheck(cudaMemcpy(h, d_counters, 5 * sizeof(uint32_t), cudaMemcpyDeviceToHost));
-    cudaFree(d_counters);
+    cudaCheck(cudaMemcpyAsync(h, d_counters, 5 * sizeof(uint32_t), cudaMemcpyDeviceToHost, stream));
+    cudaCheck(cudaStreamSynchronize(stream));
 
     r.nValid = h[0];
     r.nBadLink = h[1];

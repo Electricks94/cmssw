@@ -1,3 +1,6 @@
+#include <cstdio>
+#include <cstdlib>
+
 #include <cuda_runtime.h>
 
 #include "HeterogeneousTest/CUDADevice/interface/GDSPixelGather.h"
@@ -5,6 +8,18 @@
 
 using namespace cms::cuda;
 #define cudaCheck(ARG) cms::cuda::cudaCheck(__FILE__, __LINE__, __func__, (ARG))
+
+// HOST COUNTERPART: SiPixelRawToCluster.cc acquire(), the fedIds_ loop plus
+// WordFedAppender::initializeWordFed. Same job, on the GPU, reading the GDS
+// chunk in place.
+//
+// Everything runs on cudaStreamPerThread so concurrent EDM streams do not share
+// the legacy default stream and never issue device-wide syncs.
+//
+// Scratch memory comes from a caller-owned Workspace allocated ONCE per EDM
+// stream. Profiling with nsys showed 88% of all CUDA API time in per-event
+// cudaMallocAsync / cudaFreeAsync (median 36 us, tail to 49 ms under 32-thread
+// contention) while the GPU was idle 99% of the time.
 
 namespace {
 
@@ -17,16 +32,14 @@ namespace {
 
   // payload words of one fragment: everything between its FED header and trailer.
   // NOTE: the host version skips ALL headers / stops before ALL trailers (its
-  // moreHeaders / moreTrailers loops). This assumes exactly one of each -- true
-  // for normal pixel data, but verify before trusting it in production.
+  // moreHeaders / moreTrailers loops). This assumes exactly one of each.
   __device__ __forceinline__ uint32_t payloadWords(const frdscan::FedEntry& f) {
     if (f.size <= kFedHeaderLen + kFedTrailerLen)
       return 0;
     return (f.size - kFedHeaderLen - kFedTrailerLen) / 4u;
   }
 
-  // ---- pass 1: word count per fragment, 0 for fragments outside the FED range ----
-  // host equivalent: the `words[i] = (ew - bw); wordCounter += ...` bookkeeping
+  // ---- pass 1: word count per fragment, 0 outside the FED range ----
   __global__ void countKernel(const frdscan::FedEntry* feds,
                               uint32_t nFeds,
                               uint32_t minFedId,
@@ -40,7 +53,6 @@ namespace {
   }
 
   // ---- exclusive prefix sum, on device (one thread; nFeds is ~hundreds) ----
-  // host equivalent: `index[i] = wordCounter` accumulating through the loop
   __global__ void scanKernel(const uint32_t* counts, uint32_t nFeds, uint32_t* offsets, uint32_t* totals) {
     if (threadIdx.x != 0 || blockIdx.x != 0)
       return;
@@ -51,12 +63,11 @@ namespace {
       if (counts[i] > 0)
         ++nSelected;
     }
-    totals[0] = running;    // nWords  == wordCounter
+    totals[0] = running;    // nWords == wordCounter
     totals[1] = nSelected;  // == fedCounter
   }
 
   // ---- pass 2: copy payload words + write fedId tags, one block per fragment ----
-  // host equivalent: WordFedAppender::initializeWordFed's memcpy + memset
   __global__ void fillKernel(const unsigned char* chunk,
                              const frdscan::FedEntry* feds,
                              uint32_t nFeds,
@@ -79,7 +90,7 @@ namespace {
 
     for (uint32_t w = threadIdx.x; w < n; w += blockDim.x) {
       words[base + w] = rd32(src + size_t(w) * 4);
-      if ((w & 1u) == 0u)             // one tag byte per 64-bit digi = per word pair
+      if ((w & 1u) == 0u)  // one tag byte per 64-bit digi = per word pair
         fedIndex[(base + w) / 2] = tag;
     }
   }
@@ -88,45 +99,73 @@ namespace {
 
 namespace gdsgather {
 
-  GatherResult gatherFeds(const gdsraw::RawDataDeviceRef& ref, uint32_t minFedId, uint32_t maxFedId) {
+  void allocateWorkspace(Workspace& ws, uint32_t maxFeds, uint32_t maxWords) {
+    ws.maxFeds = maxFeds;
+    ws.maxWords = maxWords;
+    cudaCheck(cudaMalloc(&ws.d_counts, size_t(maxFeds) * sizeof(uint32_t)));
+    cudaCheck(cudaMalloc(&ws.d_offsets, size_t(maxFeds) * sizeof(uint32_t)));
+    cudaCheck(cudaMalloc(&ws.d_totals, 2 * sizeof(uint32_t)));
+    cudaCheck(cudaMalloc(&ws.d_words, size_t(maxWords) * sizeof(uint32_t)));
+    cudaCheck(cudaMalloc(&ws.d_fedIndex, (size_t(maxWords) / 2 + 1) * sizeof(uint8_t)));
+  }
+
+  void freeWorkspace(Workspace& ws) {
+    if (ws.d_counts)
+      cudaFree(ws.d_counts);
+    if (ws.d_offsets)
+      cudaFree(ws.d_offsets);
+    if (ws.d_totals)
+      cudaFree(ws.d_totals);
+    if (ws.d_words)
+      cudaFree(ws.d_words);
+    if (ws.d_fedIndex)
+      cudaFree(ws.d_fedIndex);
+    ws = Workspace{};
+  }
+
+  GatherResult gatherFeds(const gdsraw::RawDataDeviceRef& ref,
+                          uint32_t minFedId,
+                          uint32_t maxFedId,
+                          Workspace& ws) {
     GatherResult r;
     const uint32_t nFeds = ref.nFeds();
     if (nFeds == 0)
       return r;
+    if (nFeds > ws.maxFeds) {
+      printf("gatherFeds: nFeds %u exceeds workspace maxFeds %u -- raise maxFeds\n", nFeds, ws.maxFeds);
+      abort();
+    }
 
-    uint32_t *d_counts = nullptr, *d_offsets = nullptr, *d_totals = nullptr;
-    cudaCheck(cudaMalloc(&d_counts, size_t(nFeds) * sizeof(uint32_t)));
-    cudaCheck(cudaMalloc(&d_offsets, size_t(nFeds) * sizeof(uint32_t)));
-    cudaCheck(cudaMalloc(&d_totals, 2 * sizeof(uint32_t)));
+    cudaStream_t stream = cudaStreamPerThread;
 
     const int block = 128;
     const int grid = (nFeds + block - 1) / block;
-    countKernel<<<grid, block>>>(ref.feds(), nFeds, minFedId, maxFedId, d_counts);
+    countKernel<<<grid, block, 0, stream>>>(ref.feds(), nFeds, minFedId, maxFedId, ws.d_counts);
     cudaCheck(cudaGetLastError());
 
-    scanKernel<<<1, 1>>>(d_counts, nFeds, d_offsets, d_totals);
+    scanKernel<<<1, 1, 0, stream>>>(ws.d_counts, nFeds, ws.d_offsets, ws.d_totals);
     cudaCheck(cudaGetLastError());
-    cudaCheck(cudaDeviceSynchronize());
 
     uint32_t totals[2] = {0, 0};
-    cudaCheck(cudaMemcpy(totals, d_totals, 2 * sizeof(uint32_t), cudaMemcpyDeviceToHost));
+    cudaCheck(cudaMemcpyAsync(totals, ws.d_totals, 2 * sizeof(uint32_t), cudaMemcpyDeviceToHost, stream));
+    cudaCheck(cudaStreamSynchronize(stream));
     r.nWords = totals[0];
     r.nSelected = totals[1];
 
-    if (r.nWords > 0) {
-      cudaCheck(cudaMalloc(&r.d_words, size_t(r.nWords) * sizeof(uint32_t)));
-      cudaCheck(cudaMalloc(&r.d_fedIndex, size_t(r.nWords / 2 + 1) * sizeof(uint8_t)));
-      fillKernel<<<nFeds, 256>>>(
-          ref.chunk(), ref.feds(), nFeds, minFedId, maxFedId, d_offsets, r.d_words, r.d_fedIndex);
-      cudaCheck(cudaGetLastError());
-      cudaCheck(cudaDeviceSynchronize());
+    if (r.nWords > ws.maxWords) {
+      printf("gatherFeds: nWords %u exceeds workspace maxWords %u -- raise maxWords\n", r.nWords, ws.maxWords);
+      abort();
     }
 
-    cudaFree(d_counts);
-    cudaFree(d_offsets);
-    cudaFree(d_totals);
+    if (r.nWords > 0) {
+      r.d_words = ws.d_words;        // borrowed, not owned
+      r.d_fedIndex = ws.d_fedIndex;  // borrowed, not owned
+      fillKernel<<<nFeds, 256, 0, stream>>>(
+          ref.chunk(), ref.feds(), nFeds, minFedId, maxFedId, ws.d_offsets, r.d_words, r.d_fedIndex);
+      cudaCheck(cudaGetLastError());
+      cudaCheck(cudaStreamSynchronize(stream));
+    }
     return r;
   }
 
 }  // namespace gdsgather
-

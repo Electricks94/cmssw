@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -99,6 +100,7 @@ private:
   size_t nextEvent_ = 0;    // event index within that slot
 
   uint32_t runNumber_ = 0;
+  int device_ = 0;  // CUDA device the slots live on; the current device is PER HOST THREAD
 
   // running totals for the end-of-job summary
   double totalReadMs_ = 0.0;
@@ -147,6 +149,20 @@ GDSRawFileReaderPure::GDSRawFileReaderPure(edm::ParameterSet const& pset, edm::I
             << nSlots_ << " device slots of " << allocSize_ << " bytes ("
             << (double(nSlots_) * allocSize_ / (1 << 20)) << " MiB device)" << std::endl;
 
+  // every slot, and every kernel that touches one, must use this device
+  cudaCheck(cudaSetDevice(0));
+  cudaCheck(cudaGetDevice(&device_));
+
+  // The stream-ordered allocator's default release threshold is 0: every
+  // cudaFreeAsync hands the memory straight back to the driver as soon as the
+  // stream is idle, so each per-event allocation still costs a driver round
+  // trip and re-serialises what the pool exists to parallelise. Keep freed
+  // blocks cached in the pool instead.
+  cudaMemPool_t pool;
+  cudaCheck(cudaDeviceGetDefaultMemPool(&pool, device_));
+  uint64_t releaseThreshold = std::numeric_limits<uint64_t>::max();
+  cudaCheck(cudaMemPoolSetAttribute(pool, cudaMemPoolAttrReleaseThreshold, &releaseThreshold));
+
   if (useGDS_) {
     CUfileError_t status = cuFileDriverOpen();
     if (status.err != CU_FILE_SUCCESS)
@@ -191,6 +207,7 @@ GDSRawFileReaderPure::~GDSRawFileReaderPure() {
   if (validate_)
     std::cout << "  validation: " << filesValidated_ << " files passed, " << filesFailed_ << " failed" << std::endl;
 
+  cudaSetDevice(device_);
   for (auto& s : slots_) {
     if (s.d_feds)
       cudaFree(s.d_feds);
@@ -247,6 +264,10 @@ void GDSRawFileReaderPure::loadFile(size_t fileIndex) {
     return std::chrono::duration<double, std::milli>(b - a).count();
   };
 
+  // checkNext() can run on any framework thread, and the CUDA current device is
+  // per thread, so pin it before touching this slot's device memory
+  cudaCheck(cudaSetDevice(device_));
+
   Slot& s = slots_[fileIndex % nSlots_];
   s.fileName = inputFiles_[fileIndex];
 
@@ -286,7 +307,8 @@ void GDSRawFileReaderPure::loadFile(size_t fileIndex) {
       throw cms::Exception("GDSRawFileReaderPure") << "cuFileRead returned " << got << " for " << s.fileName;
 
     if (needHost_)
-      cudaCheck(cudaMemcpy(s.hostMirror, s.devPtr, s.fileSize, cudaMemcpyDeviceToHost));
+      cudaCheck(cudaMemcpyAsync(
+          s.hostMirror, s.devPtr, s.fileSize, cudaMemcpyDeviceToHost, cudaStreamPerThread));
   } else {
     int rfd = ::open(s.fileName.c_str(), O_RDONLY);
     if (rfd < 0)
@@ -299,29 +321,32 @@ void GDSRawFileReaderPure::loadFile(size_t fileIndex) {
       done += got;
     }
     ::close(rfd);
-    cudaCheck(cudaMemcpy(s.devPtr, s.hostMirror, s.fileSize, cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpyAsync(
+        s.devPtr, s.hostMirror, s.fileSize, cudaMemcpyHostToDevice, cudaStreamPerThread));
   }
-  cudaCheck(cudaDeviceSynchronize());
+  // stream-local: never block other EDM streams' work
+  cudaCheck(cudaStreamSynchronize(cudaStreamPerThread));
   auto t1 = hrclock::now();
 
   // ---------------- parse it on the device ----------------
   if (s.d_feds) {
-    cudaFree(s.d_feds);
+    cudaCheck(cudaFreeAsync(s.d_feds, cudaStreamPerThread));
     s.d_feds = nullptr;
   }
   frdscan::ScanResult sr = frdscan::scanChunkOnDevice(s.devPtr, s.fileSize, rawHeaderSize, kMaxEventsPerFile);
   s.events.resize(sr.nEvents);
   if (sr.nEvents > 0)
-    cudaCheck(cudaMemcpy(s.events.data(), sr.d_events, sr.nEvents * sizeof(frdscan::EventRecord),
-                         cudaMemcpyDeviceToHost));
+    cudaCheck(cudaMemcpyAsync(s.events.data(), sr.d_events, sr.nEvents * sizeof(frdscan::EventRecord),
+                              cudaMemcpyDeviceToHost, cudaStreamPerThread));
   s.d_feds = sr.d_feds;  // stays on the device: the product points at it
   if (produceLegacy_ or validate_) {
     s.feds.resize(sr.totalFeds);
     if (sr.totalFeds > 0)
-      cudaCheck(cudaMemcpy(s.feds.data(), sr.d_feds, size_t(sr.totalFeds) * sizeof(frdscan::FedEntry),
-                           cudaMemcpyDeviceToHost));
+      cudaCheck(cudaMemcpyAsync(s.feds.data(), sr.d_feds, size_t(sr.totalFeds) * sizeof(frdscan::FedEntry),
+                                cudaMemcpyDeviceToHost, cudaStreamPerThread));
   }
-  cudaFree(sr.d_events);
+  cudaCheck(cudaStreamSynchronize(cudaStreamPerThread));
+  cudaCheck(cudaFreeAsync(sr.d_events, cudaStreamPerThread));
   auto t2 = hrclock::now();
 
   totalReadMs_ += ms(t0, t1);
@@ -382,7 +407,8 @@ void GDSRawFileReaderPure::read(edm::EventPrincipal& eventPrincipal) {
   makeEvent(eventPrincipal, aux);
 
   // device product: two pointers and a count, no payload bytes
-  auto deviceRef = std::make_unique<gdsraw::RawDataDeviceRef>(s.devPtr, s.d_feds + e.fedIndexBase, e.nFeds);
+  auto deviceRef =
+      std::make_unique<gdsraw::RawDataDeviceRef>(s.devPtr, s.d_feds + e.fedIndexBase, e.nFeds, device_);
   std::unique_ptr<edm::WrapperBase> devp(new edm::Wrapper<gdsraw::RawDataDeviceRef>(std::move(deviceRef)));
   eventPrincipal.put(
       deviceProvenanceHelper_.productDescription(), std::move(devp), deviceProvenanceHelper_.dummyProvenance());
