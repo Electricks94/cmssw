@@ -16,10 +16,6 @@ using namespace cms::cuda;
 // Everything runs on cudaStreamPerThread so concurrent EDM streams do not share
 // the legacy default stream and never issue device-wide syncs.
 //
-// Scratch memory comes from a caller-owned Workspace allocated ONCE per EDM
-// stream. Profiling with nsys showed 88% of all CUDA API time in per-event
-// cudaMallocAsync / cudaFreeAsync (median 36 us, tail to 49 ms under 32-thread
-// contention) while the GPU was idle 99% of the time.
 
 namespace {
 
@@ -39,7 +35,7 @@ namespace {
     return (f.size - kFedHeaderLen - kFedTrailerLen) / 4u;
   }
 
-  // ---- pass 1: word count per fragment, 0 outside the FED range ----
+  // pass1: word count per fragment, 0 outside the FED range 
   __global__ void countKernel(const frdscan::FedEntry* feds,
                               uint32_t nFeds,
                               uint32_t minFedId,
@@ -52,7 +48,7 @@ namespace {
     counts[i] = (f.fedId >= minFedId && f.fedId <= maxFedId) ? payloadWords(f) : 0u;
   }
 
-  // ---- exclusive prefix sum, on device (one thread; nFeds is ~hundreds) ----
+  // exclusive prefix sum, on device (one thread; nFeds is ~hundreds) 
   __global__ void scanKernel(const uint32_t* counts, uint32_t nFeds, uint32_t* offsets, uint32_t* totals) {
     if (threadIdx.x != 0 || blockIdx.x != 0)
       return;
@@ -67,7 +63,7 @@ namespace {
     totals[1] = nSelected;  // == fedCounter
   }
 
-  // ---- pass 2: copy payload words + write fedId tags, one block per fragment ----
+  // pass 2: copy payload words + write fedId tags, one block per fragment 
   __global__ void fillKernel(const unsigned char* chunk,
                              const frdscan::FedEntry* feds,
                              uint32_t nFeds,

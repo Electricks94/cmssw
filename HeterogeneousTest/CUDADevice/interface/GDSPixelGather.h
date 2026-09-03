@@ -5,16 +5,6 @@
 
 #include "HeterogeneousTest/CUDADevice/interface/GDSRawDataDeviceRef.h"
 
-// The GPU counterpart of what SiPixelRawToCluster::acquire() does on the host:
-// pick the fragments in the pixel FED range, skip each fragment's FED header and
-// trailer, and concatenate the payload words into ONE flat buffer, plus a byte
-// array tagging each 64-bit digi with its FED.
-//
-// All scratch memory lives in a Workspace that the CALLER allocates once and
-// reuses. Allocating per event costs ~7 cudaMallocAsync calls, and with many
-// host threads those serialise on the driver: profiling showed 88% of all CUDA
-// API time in alloc/free while the GPU sat idle.
-
 namespace gdsgather {
 
   // Preallocated scratch, one per EDM stream. Not thread safe: give each stream

@@ -29,9 +29,6 @@ using namespace cms::cuda;
 // gatherFeds() and decodeWords() both end in cudaDeviceSynchronize(), so plain
 // host-side clocks around them measure real GPU work.
 //
-// The per-stage totals are SUMS OVER EVENTS. With more than one EDM stream those
-// events run concurrently, so the sums exceed wall time -- they are a cost
-// breakdown, not a duration. Wall time is measured separately.
 
 namespace {
   inline uint64_t nowNs() {
@@ -53,8 +50,7 @@ public:
         maxFeds_(config.getParameter<uint32_t>("maxFeds")),
         maxWords_(config.getParameter<uint32_t>("maxWords")) {
     // One workspace per EDM stream, allocated ONCE. analyze() then does zero
-    // CUDA allocations, which is the whole point: per-event alloc/free was 88%
-    // of CUDA API time under 32-way concurrency.
+    // CUDA allocations
     cudaCheck(cudaSetDevice(0));
     gatherWs_.resize(maxStreams_);
     decodeWs_.resize(maxStreams_);

@@ -10,10 +10,8 @@ using namespace cms::cuda;
 #define cudaCheck(ARG) cms::cuda::cudaCheck(__FILE__, __LINE__, __func__, (ARG))
 
 // Bit layout from DataFormats/SiPixelDigi/interface/SiPixelDigiConstants.h:
-//   word 31..26 LINK | 25..21 ROC | 20..16 DCOL | 15..8 PXID | 7..0 ADC
 // All work runs on cudaStreamPerThread. Scratch memory comes from a caller-owned
-// Workspace allocated once per EDM stream: per-event allocation dominated the
-// profile (88% of CUDA API time) while the GPU sat idle.
+// Workspace allocated once per EDM stream.
 
 namespace {
 
