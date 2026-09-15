@@ -293,16 +293,8 @@ namespace cms::soa {
  * Declare the value_element data members
  */
 // clang-format off
-#define _DEFINE_VALUE_ELEMENT_MEMBERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                           \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
-      /* Scalar (empty) */                                                                                             \
-      ,                                                                                                                \
-      /* Column */                                                                                                     \
-      CPP_TYPE BOOST_PP_CAT(NAME, _);                                                                                  \
-      ,                                                                                                                \
-      /* Eigen column */                                                                                               \
-      CPP_TYPE BOOST_PP_CAT(NAME, _);                                                                                  \
-  )
+#define _DEFINE_VALUE_ELEMENT_MEMBERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, CPP_TYPE BOOST_PP_CAT(NAME, _);)
 // clang-format on
 
 #define _DEFINE_VALUE_ELEMENT_MEMBERS(R, DATA, TYPE_NAME)                                   \
@@ -327,16 +319,8 @@ namespace cms::soa {
  * List-initalise the value_element data members
  */
 // clang-format off
-#define _VALUE_ELEMENT_INITIALIZERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                             \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
-      /* Scalar (empty) */                                                                                             \
-      ,                                                                                                                \
-      /* Column */                                                                                                     \
-      (BOOST_PP_CAT(NAME, _){NAME})                                                                                    \
-      ,                                                                                                                \
-      /* Eigen column */                                                                                               \
-      (BOOST_PP_CAT(NAME, _){NAME})                                                                                    \
-  )
+#define _VALUE_ELEMENT_INITIALIZERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, (BOOST_PP_CAT(NAME, _){NAME}))
 // clang-format on
 
 #define _VALUE_ELEMENT_INITIALIZERS(R, DATA, TYPE_NAME)                                     \
@@ -1117,16 +1101,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Assign the value of the view from the values in the value_element.
  */
 // clang-format off
-#define _TRIVIAL_VIEW_ASSIGN_VALUE_ELEMENT_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                    \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                        \
-      /* Scalar (empty) */                                                                                           \
-      ,                                                                                                              \
-      /* Column */                                                                                                   \
-      NAME() = _soa_impl_value.NAME();                                                                               \
-      ,                                                                                                              \
-      /* Eigen column */                                                                                             \
-      NAME() = _soa_impl_value.NAME();                                                                               \
-)
+#define _TRIVIAL_VIEW_ASSIGN_VALUE_ELEMENT_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, NAME() = _soa_impl_value.NAME();)
 // clang-format on
 
 #define _TRIVIAL_VIEW_ASSIGN_VALUE_ELEMENT(R, DATA, TYPE_NAME)                              \
@@ -1281,14 +1257,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Declare an accessors for the AoS element of the SoA
  */
 // clang-format off
-#define _DECLARE_VALUE_ELEMENT_ACCESSORS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                         \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                           \
-      /* Scalar */                                                                                      \
-      ,                                                                                                 \
-      /* Column */                                                                                      \
-      SOA_HOST_DEVICE SOA_INLINE auto& NAME() { return BOOST_PP_CAT(NAME, _); },                        \
-      /* Eigen column */                                                                                \
-      SOA_HOST_DEVICE SOA_INLINE auto& NAME() { return BOOST_PP_CAT(NAME, _); })
+#define _DECLARE_VALUE_ELEMENT_ACCESSORS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, SOA_HOST_DEVICE SOA_INLINE auto& NAME() { return BOOST_PP_CAT(NAME, _); })
 // clang-format on
 
 #define _DECLARE_VALUE_ELEMENT_ACCESSORS(R, DATA, TYPE_NAME)                                \
@@ -1300,14 +1270,9 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Declare the const accessors for the AoS element of the SoA
  */
 // clang-format off
-#define _DECLARE_VALUE_ELEMENT_CONST_ACCESSORS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)        \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                \
-      /* Scalar */                                                                           \
-      ,                                                                                      \
-      /* Column */                                                                           \
-      SOA_HOST_DEVICE SOA_INLINE const auto& NAME() const { return BOOST_PP_CAT(NAME, _); }, \
-      /* Eigen column */                                                                     \
-      SOA_HOST_DEVICE SOA_INLINE const auto& NAME() const { return BOOST_PP_CAT(NAME, _); })
+#define _DECLARE_VALUE_ELEMENT_CONST_ACCESSORS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)           \
+  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, SOA_HOST_DEVICE SOA_INLINE                                  \
+                                    const auto& NAME() const { return BOOST_PP_CAT(NAME, _); })
 // clang-format on
 
 #define _DECLARE_VALUE_ELEMENT_CONST_ACCESSORS(R, DATA, TYPE_NAME)                          \
@@ -1319,14 +1284,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Operator to assign a SoA element to an AoS element 
  */
 // clang-format off
-#define _DECLARE_ELEMENT_PARAMS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                      \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                               \
-      /* Scalar */                                                                          \
-      ,                                                                                     \
-      /* Column */                                                                          \
-      BOOST_PP_CAT(NAME, _) = elem.NAME();                                                  \
-      , /* Eigen column */                                                                  \
-      BOOST_PP_CAT(NAME, _) = elem.NAME();)
+#define _DECLARE_ELEMENT_PARAMS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, BOOST_PP_CAT(NAME, _) = elem.NAME();)
 // clang-format on
 
 #define _DECLARE_ELEMENT_PARAMS(R, DATA, TYPE_NAME)                                         \
@@ -1339,15 +1298,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Declare the AoS scalars as data members
  */
 // clang-format off
-#define _DECLARE_SCALAR_MEMBERS_AOS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                  \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                               \
-      /* Scalar */                                                                          \
-      CPP_TYPE* BOOST_PP_CAT(NAME, _) = nullptr;                                            \
-      ,                                                                                     \
-      /* Column */                                                                          \
-      ,                                                                                     \
-      /* Eigen column */                                                                    \
-  )
+#define _DECLARE_SCALAR_MEMBERS_AOS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_ONLY_FOR_SCALAR(VALUE_TYPE, CPP_TYPE* BOOST_PP_CAT(NAME, _) = nullptr;)
 // clang-format on
 
 #define _DECLARE_SCALAR_MEMBERS_AOS(R, DATA, TYPE_NAME)                                     \
@@ -1359,15 +1311,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Declare the const AoS scalars as data members
  */
 // clang-format off
-#define _DECLARE_SCALAR_MEMBERS_AOS_CONSTVIEW_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)        \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                               \
-      /* Scalar */                                                                          \
-      CPP_TYPE* BOOST_PP_CAT(NAME, _) = nullptr;                                            \
-      ,                                                                                     \
-      /* Column */                                                                          \
-      ,                                                                                     \
-       /* Eigen column */                                                                   \
-  )
+#define _DECLARE_SCALAR_MEMBERS_AOS_CONSTVIEW_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_ONLY_FOR_SCALAR(VALUE_TYPE, CPP_TYPE* BOOST_PP_CAT(NAME, _) = nullptr;)
 // clang-format on
 
 #define _DECLARE_SCALAR_MEMBERS_AOS_CONSTVIEW(R, DATA, TYPE_NAME)                           \
@@ -1376,30 +1321,11 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
               BOOST_PP_EXPAND(_DECLARE_SCALAR_MEMBERS_AOS_CONSTVIEW_IMPL TYPE_NAME))
 
 /**
- * Either emit a comma and the list of scalars or nothing if the list is empty
- */
-// clang-format off              
-#define _EMIT_AOS_SCALARS_IMPL(SIZE, SEQ)                    \
-  BOOST_PP_IF(SIZE, BOOST_PP_COMMA, BOOST_PP_EMPTY)()        \
-  BOOST_PP_IF(SIZE, BOOST_PP_SEQ_ENUM, BOOST_PP_EAT)(SEQ)
-// clang-format on
-
-#define _EMIT_AOS_SCALARS(SEQ)                               \
-  _EMIT_AOS_SCALARS_IMPL(BOOST_PP_SEQ_SIZE(SEQ), SEQ)
-
-/**
  * Construct AoSView scalars from AoS Layout
  */
 // clang-format off
-#define _INSTANTIATE_CONSTVIEW_AOS_SCALARS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)           \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                               \
-      /* Scalar */                                                                          \
-      (BOOST_PP_CAT(NAME, _){layout.BOOST_PP_CAT(NAME, _)})                                 \
-      ,                                                                                     \
-       /* Column */                                                                         \
-       ,                                                                                    \
-      /* Eigen column */                                                                    \
-  )
+#define _INSTANTIATE_CONSTVIEW_AOS_SCALARS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_ONLY_FOR_SCALAR(VALUE_TYPE, (BOOST_PP_CAT(NAME, _){layout.BOOST_PP_CAT(NAME, _)}))
 // clang-format on
 
 #define _INSTANTIATE_CONSTVIEW_AOS_SCALARS(R, DATA, TYPE_NAME)                              \
@@ -1411,15 +1337,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Construct AoSView scalars from AoS Layout
  */
 // clang-format off
-#define _DECLARE_AOS_VIEW_OTHER_MEMBER_LIST_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)           \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                \
-      /* Scalar */                                                                           \
-      (other.BOOST_PP_CAT(NAME, _))                                                          \
-      ,                                                                                      \
-       /* Column */                                                                          \
-       ,                                                                                     \
-      /* Eigen column */                                                                     \
-  )
+#define _DECLARE_AOS_VIEW_OTHER_MEMBER_LIST_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_ONLY_FOR_SCALAR(VALUE_TYPE, (other.BOOST_PP_CAT(NAME, _)))
 // clang-format on
 
 #define _DECLARE_AOS_VIEW_OTHER_MEMBER_LIST(R, DATA, TYPE_NAME)                              \
@@ -1431,15 +1350,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Computation of the scalar size for AoS size computation
  */
 // clang-format off
-#define _ACCUMULATE_AOS_SCALARS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                      \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                               \
-      /* Scalar */                                                                          \
-      _aos_impl_ret += sizeof(CPP_TYPE);                                                    \
-      ,                                                                                     \
-      /* Column */                                                                          \
-      ,                                                                                     \
-      /* Eigen column */                                                                    \
-  )
+#define _ACCUMULATE_AOS_SCALARS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_ONLY_FOR_SCALAR(VALUE_TYPE, _aos_impl_ret += sizeof(CPP_TYPE);)
 // clang-format on
 
 #define _ACCUMULATE_AOS_SCALARS(R, DATA, TYPE_NAME)                                         \
@@ -1451,16 +1363,10 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Assign the memory to the AoS scalars
  */
 // clang-format off
-#define _ASSIGN_AOS_SCALAR_MEMBERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                   \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                               \
-      /* Scalar */                                                                          \
-      BOOST_PP_CAT(NAME, _) = reinterpret_cast<CPP_TYPE*>(_aos_impl_curMem);                \
-      _aos_impl_curMem += sizeof(CPP_TYPE);                                                 \
-      ,                                                                                     \
-       /* Column */                                                                         \
-      ,                                                                                     \
-      /* Eigen column */                                                                    \
-  )
+#define _ASSIGN_AOS_SCALAR_MEMBERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)    \
+  _APPLY_ONLY_FOR_SCALAR(VALUE_TYPE,                                         \
+      BOOST_PP_CAT(NAME, _) = reinterpret_cast<CPP_TYPE*>(_aos_impl_curMem); \
+      _aos_impl_curMem += sizeof(CPP_TYPE);)
 // clang-format on
 
 #define _ASSIGN_AOS_SCALAR_MEMBERS(R, DATA, TYPE_NAME)                                      \
@@ -1472,15 +1378,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Copy the AoS scalars from a SoA view
  */
 // clang-format off
-#define _COPY_AOS_SCALAR_MEMBERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                     \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                               \
-      /* Scalar */                                                                          \
-      this->NAME() = view.NAME();                                                           \
-      ,                                                                                     \
-      /* Column */                                                                          \
-      ,                                                                                     \
-      /* Eigen column */                                                                    \
-  )
+#define _COPY_AOS_SCALAR_MEMBERS_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_ONLY_FOR_SCALAR(VALUE_TYPE, this->NAME() = view.NAME();)
 
 #define _COPY_AOS_SCALAR_MEMBERS(R, DATA, TYPE_NAME)                                        \
   BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
@@ -1570,15 +1469,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * AoS member ROOT streamer read (column pointers).
  */
 // clang-format off
-#define _STREAMER_READ_AOS_DATA_MEMBER_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)               \
-    _SWITCH_ON_TYPE(VALUE_TYPE,                                                             \
-      /* Scalar */                                                                          \
-      memcpy(BOOST_PP_CAT(NAME, _), onfile.BOOST_PP_CAT(NAME, _), sizeof(CPP_TYPE));        \
-      ,                                                                                     \
-      /* Column */                                                                          \
-      ,                                                                                     \
-      /* Eigen column */                                                                    \
-	)
+#define _STREAMER_READ_AOS_DATA_MEMBER_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+    _APPLY_ONLY_FOR_SCALAR(VALUE_TYPE, memcpy(BOOST_PP_CAT(NAME, _), onfile.BOOST_PP_CAT(NAME, _), sizeof(CPP_TYPE));)
 // clang-format on
 
 #define _STREAMER_READ_AOS_DATA_MEMBER(R, DATA, TYPE_NAME)                                  \
@@ -1590,16 +1482,10 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
  * Freeing of the ROOT-allocated column or scalar buffer
  */
 // clang-format off
-#define _ROOT_FREE_AOS_COLUMN_OR_SCALAR_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)              \
-  _SWITCH_ON_TYPE(VALUE_TYPE,                                                               \
-    /* Scalar */                                                                            \
-    delete[] BOOST_PP_CAT(NAME, _);                                                         \
-    BOOST_PP_CAT(NAME, _) = nullptr;                                                        \
-    ,                                                                                       \
-    /* Column */                                                                            \
-    ,                                                                                       \
-    /* Eigen column */                                                                      \
-)
+#define _ROOT_FREE_AOS_COLUMN_OR_SCALAR_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_ONLY_FOR_SCALAR(VALUE_TYPE,                                           \
+    delete[] BOOST_PP_CAT(NAME, _);                                            \
+    BOOST_PP_CAT(NAME, _) = nullptr;)
 // clang-format on
 
 #define _ROOT_FREE_AOS_COLUMN_OR_SCALAR(R, DATA, TYPE_NAME)                                 \
@@ -1869,8 +1755,8 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
             SOA_THROW_OUT_OF_RANGE("Out of range index in ConstViewTemplateFreeParams " #CLASS "::operator[]",         \
               _soa_impl_index, elements_)                                                                              \
         }                                                                                                              \
-        return const_element{                                                                                          \
-          _soa_impl_index.value_, _ITERATE_ON_ALL_COMMA(_DECLARE_VIEW_CONST_ELEMENT_CONSTR_CALL, ~, __VA_ARGS__)       \
+        return const_element{_soa_impl_index.value_                                                                    \
+            _APPEND_COMMA(_ITERATE_ON_ALL(_DECLARE_VIEW_CONST_ELEMENT_CONSTR_CALL, ~, __VA_ARGS__))                    \
         };                                                                                                             \
       }                                                                                                                \
                                                                                                                        \
@@ -2193,7 +2079,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       ConstViewTemplate(ConstViewTemplate<OTHER_RANGE_CHECKING> const& other)                                          \
         : ConstViewTemplate{other.elements_,                                                                           \
                             other.aos_                                                                                 \
-                            _EMIT_AOS_SCALARS(_ITERATE_ON_ALL(_DECLARE_AOS_VIEW_OTHER_MEMBER_LIST, ~, __VA_ARGS__))} {}\
+                            _APPEND_COMMA(_ITERATE_ON_ALL(_DECLARE_AOS_VIEW_OTHER_MEMBER_LIST, ~, __VA_ARGS__))} {}    \
                                                                                                                        \
       ConstViewTemplate& operator=(ConstViewTemplate const&) = default;                                                \
       template <cms::soa::RangeChecking::Mode OTHER_RANGE_CHECKING>                                                    \
@@ -2212,7 +2098,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       SOA_HOST_ONLY ConstViewTemplate(const CLASS::AoSWrapper& layout)                                                 \
       : elements_{layout.elements_},                                                                                   \
         aos_{layout.aos_}                                                                                              \
-        _EMIT_AOS_SCALARS(_ITERATE_ON_ALL(_INSTANTIATE_CONSTVIEW_AOS_SCALARS, ~, __VA_ARGS__)) {}                      \
+        _APPEND_COMMA(_ITERATE_ON_ALL(_INSTANTIATE_CONSTVIEW_AOS_SCALARS, ~, __VA_ARGS__)) {}                          \
                                                                                                                        \
       private:                                                                                                         \
           size_type elements_ = 0;                                                                                     \
@@ -2258,7 +2144,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       ViewTemplate(ViewTemplate<OTHER_RANGE_CHECKING> const& other)                                                    \
         : ViewTemplate{other.elements_,                                                                                \
                        other.aos_                                                                                      \
-                       _EMIT_AOS_SCALARS(_ITERATE_ON_ALL(_DECLARE_AOS_VIEW_OTHER_MEMBER_LIST, ~, __VA_ARGS__))} {}     \
+                       _APPEND_COMMA(_ITERATE_ON_ALL(_DECLARE_AOS_VIEW_OTHER_MEMBER_LIST, ~, __VA_ARGS__))} {}         \
       ViewTemplate& operator=(ViewTemplate const&) = default;                                                          \
       template <cms::soa::RangeChecking::Mode OTHER_RANGE_CHECKING>                                                    \
       ViewTemplate& operator=(ViewTemplate<OTHER_RANGE_CHECKING> const& other) {                                       \
