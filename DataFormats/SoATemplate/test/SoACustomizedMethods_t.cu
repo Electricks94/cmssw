@@ -6,22 +6,32 @@
 
 #include "SoADefinition_CustomizedMethods.h"
 
-__global__ void calculateNorm(SoAConstView soaConstView, float* resultNorm, double* resultVelNorm) {
+__global__ void transposeSoAToAoS(SoAConstView soaConstView, SoA::AoSWrapper::View aosView) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i >= soaConstView.metadata().size())
     return;
 
-  resultNorm[i] = soaConstView[i].square_norm_position();
-  resultVelNorm[i] = soaConstView[i].square_norm_velocity();
+  aosView.transpose(soaConstView, i);
 }
 
-__global__ void checkNormalise(SoAView soaView, double* checkTimesFunction) {
+template <typename ConstView>
+__global__ void calculateNorm(ConstView constView, float* resultNorm, double* resultVelNorm) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i >= soaView.metadata().size())
+  if (i >= constView.metadata().size())
     return;
 
-  checkTimesFunction[i] = SoAView::const_element::time(soaView[i].x(), soaView[i].v_x());
-  soaView[i].normalise();
+  resultNorm[i] = constView[i].square_norm_position();
+  resultVelNorm[i] = constView[i].square_norm_velocity();
+}
+
+template <typename View>
+__global__ void checkNormalise(View view, double* checkTimesFunction) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= view.metadata().size())
+    return;
+
+  checkTimesFunction[i] = View::const_element::time(view[i].x(), view[i].v_x());
+  view[i].normalise();
 }
 
 __global__ void checkPointsDistance(PointsConstView view, bool* result) { *result &= (view.distance2(0, 1) == 14.f); }
@@ -63,6 +73,14 @@ TEST_CASE("SoACustomizedMethods CUDA", "[SoACustomizedMethods][cuda]") {
   SoAView d_view(d_soahdLayout);
   SoAConstView d_Constview(d_soahdLayout);
 
+  // create AoS layout on device only
+  const std::size_t aos_bufferSize = SoA::AoSWrapper::computeDataSize(elems);
+  std::byte* d_aos_buf = nullptr;
+  CUDA_CHECK(cudaMalloc(&d_aos_buf, aos_bufferSize));
+  SoA::AoSWrapper d_aos(d_aos_buf, elems);
+  SoA::AoSWrapper::View d_aos_view(d_aos);
+  SoA::AoSWrapper::ConstView d_aos_const_view(d_aos);
+
   std::vector<float> h_position_norms(elems);
   std::vector<double> h_velocity_norms(elems);
   std::vector<double> h_times(elems);
@@ -78,23 +96,29 @@ TEST_CASE("SoACustomizedMethods CUDA", "[SoACustomizedMethods][cuda]") {
   // Host → Device copy
   CUDA_CHECK(cudaMemcpy(d_buf, h_buf, bufferSize, cudaMemcpyHostToDevice));
 
+  transposeSoAToAoS<<<(elems + 255) / 256, 256>>>(d_Constview, d_aos_view);
+
   SECTION("ConstElement methods CUDA") {
-    calculateNorm<<<(elems + 255) / 256, 256>>>(d_Constview, d_position_norms, d_velocity_norms);
+    auto test_view = [&](auto const& view) {
+      calculateNorm<<<(elems + 255) / 256, 256>>>(view, d_position_norms, d_velocity_norms);
 
-    CUDA_CHECK(cudaMemcpy(h_position_norms.data(), d_position_norms, elems * sizeof(float), cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaMemcpy(h_velocity_norms.data(), d_velocity_norms, elems * sizeof(double), cudaMemcpyDeviceToHost));
+      CUDA_CHECK(cudaMemcpy(h_position_norms.data(), d_position_norms, elems * sizeof(float), cudaMemcpyDeviceToHost));
+      CUDA_CHECK(cudaMemcpy(h_velocity_norms.data(), d_velocity_norms, elems * sizeof(double), cudaMemcpyDeviceToHost));
 
-    // Check for the correctness of the square_norm() functions
-    for (size_t i = 0; i < elems; i++) {
-      const float position_norm =
-          sqrt(h_Constview[i].x() * h_Constview[i].x() + h_Constview[i].y() * h_Constview[i].y() +
-               h_Constview[i].z() * h_Constview[i].z());
-      const double velocity_norm =
-          sqrt(h_Constview[i].v_x() * h_Constview[i].v_x() + h_Constview[i].v_y() * h_Constview[i].v_y() +
-               h_Constview[i].v_z() * h_Constview[i].v_z());
-      REQUIRE(h_position_norms[i] == position_norm);
-      REQUIRE(h_velocity_norms[i] == velocity_norm);
-    }
+      // Check for the correctness of the square_norm() functions
+      for (size_t i = 0; i < elems; i++) {
+        const float position_norm =
+            sqrt(h_Constview[i].x() * h_Constview[i].x() + h_Constview[i].y() * h_Constview[i].y() +
+                 h_Constview[i].z() * h_Constview[i].z());
+        const double velocity_norm =
+            sqrt(h_Constview[i].v_x() * h_Constview[i].v_x() + h_Constview[i].v_y() * h_Constview[i].v_y() +
+                 h_Constview[i].v_z() * h_Constview[i].v_z());
+        REQUIRE(h_position_norms[i] == position_norm);
+        REQUIRE(h_velocity_norms[i] == velocity_norm);
+      }
+    };
+    test_view(d_Constview);
+    test_view(d_aos_const_view);
   }
 
   SECTION("Element methods CUDA") {
@@ -123,6 +147,40 @@ TEST_CASE("SoACustomizedMethods CUDA", "[SoACustomizedMethods][cuda]") {
       REQUIRE_THAT(h_view[i].square_norm_position(), Catch::Matchers::WithinAbs(1.f, 1.e-6));
       REQUIRE_THAT(h_view[i].square_norm_velocity(), Catch::Matchers::WithinAbs(1., 1.e-9));
     }
+  }
+
+  SECTION("Element methods CUDA AoS") {
+    std::array<double, elems> times;
+
+    // Check for the correctness of the time() function
+    times[0] = 0.;
+    for (size_t i = 0; i < elems; i++) {
+      if (!(i == 0))
+        times[i] = h_view[i].x() / h_view[i].v_x();
+    }
+
+    checkNormalise<<<(elems + 255) / 256, 256>>>(d_aos_view, d_times);
+
+    std::byte* h_aos_buf = nullptr;
+    CUDA_CHECK(cudaMallocHost(&h_aos_buf, bufferSize));
+    SoA::AoSWrapper h_soahdLayout(h_aos_buf, elems);
+    SoA::AoSWrapper::View h_aos_view(h_soahdLayout);
+
+    CUDA_CHECK(cudaMemcpy(h_times.data(), d_times, elems * sizeof(double), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(h_aos_buf, d_aos_buf, aos_bufferSize, cudaMemcpyDeviceToHost));
+
+    // Check for the correctness of the time() function
+    for (size_t i = 0; i < elems; i++) {
+      REQUIRE(h_times[i] == times[i]);
+    }
+
+    REQUIRE(h_aos_view[0].square_norm_position() == 0.f);
+    REQUIRE(h_aos_view[0].square_norm_velocity() == 0.);
+    for (size_t i = 1; i < elems; i++) {
+      REQUIRE_THAT(h_aos_view[i].square_norm_position(), Catch::Matchers::WithinAbs(1.f, 1.e-6));
+      REQUIRE_THAT(h_aos_view[i].square_norm_velocity(), Catch::Matchers::WithinAbs(1., 1.e-9));
+    }
+    CUDA_CHECK(cudaFreeHost(h_aos_buf));
   }
 
   const auto points_sizes = std::array<cms::soa::size_type, 2>{{2, 2}};
@@ -176,4 +234,5 @@ TEST_CASE("SoACustomizedMethods CUDA", "[SoACustomizedMethods][cuda]") {
   CUDA_CHECK(cudaFree(d_result));
   CUDA_CHECK(cudaFreeHost(h_buf));
   CUDA_CHECK(cudaFreeHost(points_buffer_host));
+  CUDA_CHECK(cudaFree(d_aos_buf));
 }
