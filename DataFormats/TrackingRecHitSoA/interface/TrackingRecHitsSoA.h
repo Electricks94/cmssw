@@ -27,11 +27,33 @@ namespace reco {
                       SOA_COLUMN(uint16_t, detectorIndex),
                       SOA_SCALAR(int32_t, offsetBPIX2));
 
-  GENERATE_SOA_LAYOUT(HitModulesLayout, SOA_COLUMN(uint32_t, moduleStart));
+  GENERATE_SOA_LAYOUT(HitModulesLayoutTemplate, SOA_COLUMN(uint32_t, moduleStart));
+
+  template <CMS_SOA_BYTE_SIZE_TYPE ALIGNMENT = cms::soa::CacheLineSize::defaultSize,
+            bool ALIGNMENT_ENFORCEMENT = cms::soa::AlignmentEnforcement::relaxed>
+  class HitModulesLayout final : public HitModulesLayoutTemplate<ALIGNMENT, ALIGNMENT_ENFORCEMENT> {
+    using Parent = HitModulesLayoutTemplate<ALIGNMENT, ALIGNMENT_ENFORCEMENT>;
+
+  public:
+    HitModulesLayout() : Parent() {}
+    HitModulesLayout(std::byte* mem, cms::soa::size_type elements) : Parent(mem, elements + 1) {}
+
+    static constexpr auto computeDataSize(std::size_t size) {
+      return Parent::computeDataSize(size + 1);
+    }
+  };
 
   GENERATE_SOA_BLOCKS(TrackingBlocksLayout,
                       SOA_BLOCK(trackingHits, TrackingHitsLayout),
-                      SOA_BLOCK(hitModules, HitModulesLayout))
+                      SOA_BLOCK(hitModules, HitModulesLayout),
+                      SOA_CONST_VIEW_METHODS(
+                      constexpr SOA_HOST_DEVICE auto nHits() const {
+                            return static_cast<uint32_t>(this->trackingHits().metadata().size());
+                          }
+                      constexpr SOA_HOST_DEVICE auto nModules() const { 
+                        return static_cast<uint32_t>(this->hitModules().metadata().size() - 1); 
+                      }
+                      ))
 
   // N.B. this layout is not really included by default in the hits SoA
   // This holds the needed parameters to activate (via ONLY_TRIPLETS_IN_HOLE) the

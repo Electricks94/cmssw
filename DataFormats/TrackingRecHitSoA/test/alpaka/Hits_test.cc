@@ -56,7 +56,7 @@ int main() {
           cms::alpakatools::make_device_view<uint32_t>(queue, clusters.view().clusModuleStart().data(), nHits);
       alpaka::memcpy(queue, moduleStartD, moduleStartH);
 
-      TrackingRecHitsSoACollection tkhit(queue, clusters);
+      TrackingRecHitsSoACollection tkhit(queue, clusters.nClusters(), clusters.view().metadata().size());
 
       // exercise the copy of a full column (on device)
       auto hitXD = cms::alpakatools::make_device_view<float>(queue, tkhit.view().trackingHits().xLocal().data(), nHits);
@@ -71,7 +71,6 @@ int main() {
       alpaka::memcpy(queue, hitYD, constYGV_v);
 
       testTrackingRecHitSoA::runKernels(tkhit.view(), queue);
-      tkhit.updateFromDevice(queue);
 
 #if defined ALPAKA_ACC_CPU_B_SEQ_T_SEQ_ENABLED or defined ALPAKA_ACC_CPU_B_TBB_T_SEQ_ENABLED
       // requires c++23 to make cms::alpakatools::CopyToHost compile using if constexpr
@@ -102,10 +101,10 @@ int main() {
       assert(host_collection.view().trackingHits().yGlobal()[int(nHits / 2)] == constYG);
       assert(host_collection_2.view().trackingHits().yLocal()[nHits - 1] == constYL);
 
-      assert(tkhit.nHits() == nHits);
-      assert(tkhit.offsetBPIX2() == 22);  // set in the kernel
-      assert(tkhit.nHits() == host_collection.nHits());
-      assert(tkhit.offsetBPIX2() == host_collection.offsetBPIX2());
+      assert(tkhit.view().nHits() == nHits);
+      assert(::reco::offsetBPIX2(queue, tkhit) == 22);  // set in the kernel
+      assert(tkhit.view().nHits() == host_collection.view().nHits());
+      assert(::reco::offsetBPIX2(queue, tkhit) == ::reco::offsetBPIX2(queue_host, host_collection));
     }
   }
 
