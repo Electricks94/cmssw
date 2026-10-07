@@ -49,13 +49,13 @@ namespace reco {
         : HitPortableCollectionHost(queue, clusters.nClusters(), clusters.view().metadata().size()) {
       auto hitsView = view().trackingHits();
       auto modsView = view().hitModules();
+      auto clustersView = clusters.view();
 
-      auto nModules = clusters.view().metadata().size();
+      auto nModules = clustersView.metadata().size();
 
-      auto clusters_m = cms::alpakatools::make_host_view(clusters.view().clusModuleStart(), nModules);
-      auto hits_m = cms::alpakatools::make_host_view(modsView.moduleStart(), nModules);
-
-      alpaka::memcpy(queue, hits_m, clusters_m);
+      for (int i = 0; i < nModules; ++i) {
+       modsView.moduleStart()[i] = clustersView.clusModuleStart()[i];
+      }
 
       hitsView.offsetBPIX2() = clusters.offsetBPIX2();
     }

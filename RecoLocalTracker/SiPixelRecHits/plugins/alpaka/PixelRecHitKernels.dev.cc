@@ -42,6 +42,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
       TrackingRecHitsSoACollection hits_d(queue, clusters_d);
 
+      alpaka::exec<Acc1D>(queue,
+                          cms::alpakatools::make_workdiv<Acc1D>(clusters_d.view().metadata().size(), 256),
+                          CopyModuleStartKernel{},
+                          hits_d.view().hitModules(),
+                          clusters_d.view());
+
       int activeModulesWithDigis = digis_d.nModules();
 
       // protect from empty events

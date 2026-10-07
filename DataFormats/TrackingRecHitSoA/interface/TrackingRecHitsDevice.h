@@ -45,14 +45,6 @@ namespace reco {
         : HitPortableCollectionDevice<TDev>(queue, clusters.nClusters(), clusters.view().metadata().size()),
           offsetBPIX2_{clusters.offsetBPIX2()} {
       auto hitsView = this->view().trackingHits();
-      auto modsView = this->view().hitModules();
-
-      auto nModules = clusters.view().metadata().size();
-
-      auto clusters_m = cms::alpakatools::make_device_view(queue, clusters.view().clusModuleStart(), nModules);
-      auto hits_m = cms::alpakatools::make_device_view(queue, modsView.moduleStart(), nModules);
-
-      alpaka::memcpy(queue, hits_m, clusters_m);
 
       auto off_h = cms::alpakatools::make_host_view(offsetBPIX2_);
       auto off_d = cms::alpakatools::make_device_view(queue, hitsView.offsetBPIX2());
