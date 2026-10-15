@@ -46,7 +46,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
       // optimization that depends on access pattern
       theInnerZ_ = hh[innerHitId].zGlobal();
-      theInnerR_ = hh[innerHitId].rGlobal();
     }
 
     using hindex_type = ::caStructures::hindex_type;
@@ -89,8 +88,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     ALPAKA_FN_ACC ALPAKA_FN_INLINE float inner_z(const HitsMultiView& hh) const { return theInnerZ_; }
     ALPAKA_FN_ACC ALPAKA_FN_INLINE float inner_z() const { return theInnerZ_; }
     ALPAKA_FN_ACC ALPAKA_FN_INLINE float outer_z(const HitsMultiView& hh) const { return hh[theOuterHitId_].zGlobal(); }
-    ALPAKA_FN_ACC ALPAKA_FN_INLINE float inner_r(const HitsMultiView& hh) const { return theInnerR_; }
-    ALPAKA_FN_ACC ALPAKA_FN_INLINE float inner_r() const { return theInnerR_; }
+    ALPAKA_FN_ACC ALPAKA_FN_INLINE float inner_r(const HitsMultiView& hh) const { return hh[theInnerHitId_].rGlobal(); }
     ALPAKA_FN_ACC ALPAKA_FN_INLINE float outer_r(const HitsMultiView& hh) const { return hh[theOuterHitId_].rGlobal(); }
 
     ALPAKA_FN_ACC ALPAKA_FN_INLINE auto inner_iphi(const HitsMultiView& hh) const { return hh[theInnerHitId_].iphi(); }
@@ -367,7 +365,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     uint16_t theStatus_;  // tbd
 
     float theInnerZ_;
-    float theInnerR_;
     hindex_type theInnerHitId_;
     hindex_type theOuterHitId_;
     hindex_type theFishboneId_;

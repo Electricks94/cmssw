@@ -763,7 +763,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
           // check if the most inner hit does not fulfill the starting requirement
           auto lid = thisCell.innerLayer();
-          if (thisCell.inner_r() > ll[lid].startMaxInnerR())
+          if (thisCell.inner_r(hh) > ll[lid].startMaxInnerR())
             doit = false;
 
           constexpr uint32_t maxDepth = TrackerTraits::maxLayersPerTrack - 1;
@@ -776,7 +776,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               doit,
               idx,
               cellNeighborsHisto->size(idx),
-              thisCell.inner_r(),
+              thisCell.inner_r(hh),
               ll[lid].startMaxInnerR());
 #endif
 
