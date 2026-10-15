@@ -141,19 +141,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       return tan_12_13_half_mul_distance_13_squared * pMin <= thetaCut * distance_13_squared * radius_diff;
     }
 
-    ALPAKA_FN_ACC ALPAKA_FN_INLINE auto dcaCut(const HitsMultiView& hh,
-                                               CACell const& otherCell,
+    ALPAKA_FN_ACC ALPAKA_FN_INLINE auto dcaCut(const float x1, const float y1,
+                                               const float x2, const float y2,
+                                               const float x3, const float y3,
                                                const float region_origin_radius_plus_tolerance,
                                                const float maxCurv) const {
-      auto x1 = otherCell.inner_x(hh);
-      auto y1 = otherCell.inner_y(hh);
-
-      auto x2 = inner_x(hh);
-      auto y2 = inner_y(hh);
-
-      auto x3 = outer_x(hh);
-      auto y3 = outer_y(hh);
-
       CircleEq<float> eq(x1, y1, x2, y2, x3, y3);
 
       auto curvature = eq.curvature();

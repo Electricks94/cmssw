@@ -627,10 +627,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                  thisCell.innerLayer(),
                  numberOfPossibleNeighbors);
 #endif
-          auto ri = thisCell.inner_r(hh);
-          auto zi = thisCell.inner_z(hh);
-          auto ro = thisCell.outer_r(hh);
-          auto zo = thisCell.outer_z(hh);
+          const auto element_inner = hh[thisCell.inner_hit_id()];
+          const auto element_outer = hh[thisCell.outer_hit_id()];
+          auto ri = element_inner.rGlobal();
+          auto zi = element_inner.zGlobal();
+          auto ro = element_outer.rGlobal();
+          auto zo = element_outer.zGlobal();
           auto thetaCut = ll[thisCell.innerLayer()].caThetaCut();
           auto skips = cc[thisCell.layerPairId()].skipsLayers();
 
@@ -638,12 +640,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           for (uint32_t j : cms::alpakatools::independent_group_elements_x(acc, numberOfPossibleNeighbors)) {
             auto otherCell = outerHitCells[j];
             auto &oc = cells[otherCell];
-            auto r1 = oc.inner_r(hh);
-            auto z1 = oc.inner_z(hh);
+            const auto element_inner_oc = hh[oc.inner_hit_id()];
+            auto r1 = element_inner_oc.rGlobal();
+            auto z1 = element_inner_oc.zGlobal();
             auto dcaCut = ll[oc.innerLayer()].caDCACut();
             bool aligned = Cell::areAlignedRZ(r1, z1, ri, zi, ro, zo, params.ptmin_, thetaCut);
             if (aligned) {
-              if (thisCell.dcaCut(hh, oc, dcaCut, params.hardCurvCut_)) {
+              if (thisCell.dcaCut(element_inner_oc.xGlobal(), element_inner_oc.yGlobal(), 
+                                  element_inner.xGlobal(), element_inner.yGlobal(), 
+                                  element_outer.xGlobal(), element_outer.yGlobal(), dcaCut, params.hardCurvCut_)) {
                 auto t_ind = alpaka::atomicAdd(acc, nTrips, 1u, alpaka::hierarchy::Blocks{});
 #ifdef CA_DEBUG
                 printf("Triplet no. %d %.5f %.5f (%d %d) - %d %d -> (%d, %d, %d, %d) \n",
