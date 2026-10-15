@@ -69,54 +69,30 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
 
   template <typename TrackerTraits, alpaka::concepts::Acc TAcc>
   ALPAKA_FN_ACC ALPAKA_FN_INLINE bool zSizeCut(const TAcc& acc,
-                                               caStructures::HitsMultiView hh,
+                                               const auto element_i,
+                                               const auto element_o,
                                                ::reco::CALayersSoAConstView ll,
-                                               AlgoParams const& params,
-                                               int i,
-                                               int o) {
-    const uint32_t mi = hh[i].detectorIndex();
+                                               AlgoParams const& params) {
+    const uint32_t mi = element_i.detectorIndex();
     const auto first_forward = ll.layerStarts()[4];
     const auto first_bpix2 = ll.layerStarts()[1];
     bool innerB1 = mi < first_bpix2;
     bool isOuterLadder = moduleIsOuterLadder<TrackerTraits>(mi);
-    auto mes = (!innerB1) || isOuterLadder ? hh[i].clusterSizeY() : -1;
-#ifdef DOUBLETS_DEBUG
-    printf("i = %d o = %d mi = %d innerB1 = %d isOuterLadder = %d first_forward = %d first_bpix2 = %d\n",
-           i,
-           o,
-           mi,
-           innerB1,
-           isOuterLadder,
-           first_forward,
-           first_bpix2);
-#endif
+    auto mes = (!innerB1) || isOuterLadder ? element_i.clusterSizeY() : -1;
     if (mes < 0)
       return false;
 
-    const uint32_t mo = hh[o].detectorIndex();
-    auto so = hh[o].clusterSizeY();
+    const uint32_t mo = element_o.detectorIndex();
+    auto so = element_o.clusterSizeY();
 
-    auto dz = hh[i].zGlobal() - hh[o].zGlobal();
-    auto dr = hh[i].rGlobal() - hh[o].rGlobal();
+    auto dz = element_i.zGlobal() - element_o.zGlobal();
+    auto dr = element_i.rGlobal() - element_o.rGlobal();
 
     auto innerBarrel = mi < first_forward;
     auto onlyBarrel = mo < first_forward;
-#ifdef DOUBLETS_DEBUG
-    printf("i = %d o = %d mo = %d innerB1 = %d isOuterLadder = %d \n", i, o, mo, innerBarrel, onlyBarrel);
-#endif
     if (not innerBarrel and not onlyBarrel)
       return false;
     auto dy = innerB1 ? params.maxDYsize12_ : params.maxDYsize_;
-#ifdef DOUBLETS_DEBUG
-    printf("i = %d o = %d dy = %d maxDYsize12_ = %d maxDYsize_ = %d dzdrFact_ = %.2f maxDYPred_ = %d \n",
-           i,
-           o,
-           dy,
-           params.maxDYsize12_,
-           params.maxDYsize_,
-           params.dzdrFact_,
-           params.maxDYPred_);
-#endif
     return onlyBarrel
                ? so > 0 && std::abs(so - mes) > dy
                : innerBarrel && std::abs(mes - int(std::abs(dz / dr) * params.dzdrFact_ + 0.5f)) > params.maxDYPred_;
@@ -124,35 +100,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
 
   template <typename TrackerTraits, alpaka::concepts::Acc TAcc>
   ALPAKA_FN_ACC ALPAKA_FN_INLINE bool clusterCut(const TAcc& acc,
-                                                 caStructures::HitsMultiView hh,
+                                                 const auto element,
                                                  ::reco::CALayersSoAConstView ll,
-                                                 AlgoParams const& params,
-                                                 uint32_t i) {
-    const uint32_t mi = hh[i].detectorIndex();
+                                                 AlgoParams const& params) {
+    const uint32_t mi = element.detectorIndex();
     const auto first_bpix2 = ll.layerStarts()[1];
     const auto first_bpix3 = ll.layerStarts()[2];
     bool innerB1orB2 = mi < ll.layerStarts()[2];
-#ifdef DOUBLETS_DEBUG
-    printf(
-        "i = %d mi = %d innerB1orB2 = %d innerB1 = %d innerB2 = %d minYsizeB1 = %d minYsizeB2 = %d isOuterLadder = %d "
-        "mes = %d \n",
-        i,
-        mi,
-        innerB1orB2,
-        mi < first_bpix2,
-        (mi >= first_bpix2) && (mi < first_bpix3),
-        params.minYsizeB1_,
-        params.minYsizeB2_,
-        (0 == (mi / 8) % 2),
-        (!(mi < first_bpix2)) || (0 == (mi / 8) % 2) ? hh[i].clusterSizeY() : -1);
-#endif
     if (!innerB1orB2)
       return false;
 
     bool innerB1 = mi < first_bpix2;
 
     bool isOuterLadder = moduleIsOuterLadder<TrackerTraits>(mi);
-    auto mes = (!innerB1) || isOuterLadder ? hh[i].clusterSizeY() : -1;
+    auto mes = (!innerB1) || isOuterLadder ? element.clusterSizeY() : -1;
 
     if (innerB1)  // B1
       if (mes > 0 && mes < params.minYsizeB1_)
@@ -223,10 +184,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
       auto i = (0 == pairLayerId) ? j : j - innerLayerCumulativeSize[pairLayerId - 1];
       i += offsets[inner];
 
+      const auto element_i = hh[i];
+
       ALPAKA_ASSERT_ACC(i >= offsets[inner]);
       ALPAKA_ASSERT_ACC(i < offsets[inner + 1]);
       // found hit corresponding to our worker thread, now do the job
-      if (hh[i].detectorIndex() > ll.layerStarts()[ll.metadata().size() - 1]) {  //TODO use cc
+      if (element_i.detectorIndex() > ll.layerStarts()[ll.metadata().size() - 1]) {  //TODO use cc
         continue;  // invalid
       }
 
@@ -236,8 +199,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
       if ( ((inner<3) & (outer>3)) && bpos!=fpos) continue;
       */
 
-      auto zi = hh[i].zGlobal();
-      auto ri = hh[i].rGlobal();
+      auto zi = element_i.zGlobal();
+      auto ri = element_i.rGlobal();
 
       // cut on inner coordinate (z or r depending on layer)
       auto valInner = ll.isBarrel()[inner] ? zi : ri;
@@ -246,22 +209,22 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
       }
 
       if (doClusterCut && outer > pixelTopology::last_barrel_layer &&
-          clusterCut<TrackerTraits, TAcc>(acc, hh, ll, params, i)) {
+          clusterCut<TrackerTraits, TAcc>(acc, element_i, ll, params)) {
         continue;
       }
 
-      auto mep = hh[i].iphi();
+      auto mep = element_i.iphi();
 
       // all cuts: true if fails
-      auto ptcut = [&](int j, int16_t idphi) {
+      auto ptcut = [&](const auto element, int16_t idphi) {
         // ptCut already converted to minRadius2T4 in CAHitNtupletGenerator.cc
-        auto ro = hh[j].rGlobal();
+        auto ro = element.rGlobal();
         auto dphi = short2phi(idphi);
         return dphi * dphi * (cc.ptCuts()[pairLayerId] - ri * ro) > (ro - ri) * (ro - ri);
       };
-      auto z0cutoff = [&](int j) {
-        auto zo = hh[j].zGlobal();
-        auto ro = hh[j].rGlobal();
+      auto z0cutoff = [&](const auto element) {
+        auto zo = element.zGlobal();
+        auto ro = element.rGlobal();
         auto dr = ro - ri;
         return dr > cc.maxDR()[pairLayerId] || dr < 0 || std::abs((zi * ro - ri * zo)) > params.cellZ0Cut_ * dr;
       };
@@ -288,17 +251,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
         for (uint32_t pIndex : cms::alpakatools::independent_group_elements_x(acc, maxpIndex)) {
           // FIXME implement alpaka::ldg and use it here? or is it const* __restrict__ enough?
           auto oi = p[pIndex];
+          const auto element_oi = hh[oi];
           ALPAKA_ASSERT_ACC(oi >= offsets[outer]);
           ALPAKA_ASSERT_ACC(oi < offsets[outer + 1]);
-          auto mo = hh[oi].detectorIndex();
+          auto mo = element_oi.detectorIndex();
 
           // invalid
           if (mo > pixelClustering::maxNumModules) {  //FIXME use cc?
             continue;
           }
 
-          auto zo = hh[oi].zGlobal();
-          auto ro = hh[oi].rGlobal();
+          auto zo = element_oi.zGlobal();
+          auto ro = element_oi.rGlobal();
 
           // cut on outer coordinate (z or r depending on layer)
           auto valOuter = ll.isBarrel()[outer] ? zo : ro;
@@ -313,21 +277,21 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
             continue;
           }
 
-          if (params.cellZ0Cut_ > 0. && z0cutoff(oi)) {
+          if (params.cellZ0Cut_ > 0. && z0cutoff(element_oi)) {
             continue;
           }
 
-          auto mop = hh[oi].iphi();
+          auto mop = element_oi.iphi();
           uint16_t idphi = std::min(std::abs(int16_t(mop - mep)), std::abs(int16_t(mep - mop)));
 
           if (idphi > iphicut) {
             continue;
           }
-          if (doZSizeCut && zSizeCut<TrackerTraits, TAcc>(acc, hh, ll, params, i, oi)) {
+          if (doZSizeCut && zSizeCut<TrackerTraits, TAcc>(acc, element_i, element_oi, ll, params)) {
             continue;
           }
 
-          if (cc.ptCuts()[pairLayerId] > 0. && ptcut(oi, idphi)) {
+          if (cc.ptCuts()[pairLayerId] > 0. && ptcut(element_oi, idphi)) {
             continue;
           }
 
