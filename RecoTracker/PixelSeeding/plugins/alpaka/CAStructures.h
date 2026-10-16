@@ -52,10 +52,12 @@ namespace caStructures {
   using HitsView = ::reco::TrackingRecHitView;
   using HitModulesConstView = ::reco::HitModuleSoAConstView;
   using HitsConstView = ::reco::TrackingRecHitConstView;
+  using HitsGlobalConstView = ::reco::TrackingHitsGlobalConstView;
 
   // MultiViews for hits and modules
   using ModulesMultiView = SoAConstMultiView<HitModulesConstView, 2>;
   using HitsMultiView = SoAConstMultiView<HitsConstView, 2>;
+  using GlobalHitsMultiView = SoAConstMultiView<HitsGlobalConstView, 2>;
 
   //Tracks data formats
   using TkSoAView = ::reco::TrackSoAView;
