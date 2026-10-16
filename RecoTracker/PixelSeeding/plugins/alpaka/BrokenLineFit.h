@@ -105,11 +105,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           ALPAKA_ASSERT_ACC(j < int(nHits));
           n += incr;
           auto hit = hitId[j];
+          const auto element = hh[hit];
           float ge[6];
 
 #ifdef YERR_FROM_DC
-          auto const &dp = cm->detParams(hh[hit].detectorIndex());
-          auto status = hh[hit].chargeAndStatus().status;
+          auto const &dp = cm->detParams(element.detectorIndex());
+          auto status = element.chargeAndStatus().status;
           int qbin = CPEFastParametrisation::kGenErrorQBins - 1 - status.qBin;
           ALPAKA_ASSERT_ACC(qbin >= 0 && qbin < 5);
           bool nok = (status.isBigY | status.isOneY);
@@ -126,11 +127,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           yerr *= dp.yfact[qbin];                // inflate
           yerr *= yerr;
           yerr += dp.apeYY;
-          yerr = nok ? hh[hit].yerrLocal() : yerr;
-          dp.frame.toGlobal(hh[hit].xerrLocal(), 0, yerr, ge);
+          yerr = nok ? element.yerrLocal() : yerr;
+          dp.frame.toGlobal(element.xerrLocal(), 0, yerr, ge);
 #else
-          auto const &frame = cm.detFrame(hh[hit].detectorIndex());
-          frame.toGlobal(hh[hit].xerrLocal(), 0, hh[hit].yerrLocal(), ge);
+          auto const &frame = cm.detFrame(element.detectorIndex());
+          frame.toGlobal(element.xerrLocal(), 0, element.yerrLocal(), ge);
 #endif
 
 #ifdef BL_DUMP_HITS
@@ -140,18 +141,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                    local_idx,
                    tkid,
                    hit,
-                   hh[hit].detectorIndex(),
+                   element.detectorIndex(),
                    i,
-                   hh[hit].xGlobal(),
-                   hh[hit].yGlobal(),
-                   sqrt(hh[hit].xGlobal() * hh[hit].xGlobal() + hh[hit].yGlobal() * hh[hit].yGlobal()),
-                   hh[hit].zGlobal());
+                   element.xGlobal(),
+                   element.yGlobal(),
+                   sqrt(element.xGlobal() * element.xGlobal() + element.yGlobal() * element.yGlobal()),
+                   element.zGlobal());
             printf("Local Error(%d): x2: %e, x[um]: %e, y2: %e, y[um]: %e\n",
                    i,
-                   hh[hit].xerrLocal(),
-                   1.e4 * sqrt(hh[hit].xerrLocal()),
-                   hh[hit].yerrLocal(),
-                   1.e4 * sqrt(hh[hit].yerrLocal()));
+                   element.xerrLocal(),
+                   1.e4 * sqrt(element.xerrLocal()),
+                   element.yerrLocal(),
+                   1.e4 * sqrt(element.yerrLocal()));
             printf("Error: hits_ge.col(%d) x[um]: %e, y[um]: %e, z[um]: %e\n",
                    i,
                    1.e4 * sqrt(ge[0]),
@@ -161,7 +162,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           }
 #endif
 
-          hits.col(i) << hh[hit].xGlobal(), hh[hit].yGlobal(), hh[hit].zGlobal();
+          hits.col(i) << element.xGlobal(), element.yGlobal(), element.zGlobal();
           hits_ge.col(i) << ge[0], ge[1], ge[2], ge[3], ge[4], ge[5];
         }
         brokenline::fastFit(acc, hits, fast_fit);
