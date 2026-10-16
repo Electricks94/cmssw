@@ -1264,7 +1264,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     class Kernel_sharedHitCleaner {
     public:
       ALPAKA_FN_ACC void operator()(Acc1D const &acc,
-                                    HitsMultiView hh,
                                     uint32_t const *__restrict__ layerStarts,
                                     TkSoAView tracks_view,
                                     int nmin,
@@ -2216,7 +2215,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::exec<Acc1D>(queue,
                           workDiv1D,
                           Kernel_sharedHitCleaner<TrackerTraits>{},
-                          hh,
                           this->device_layerStarts_->data(),
                           tracks_view,
                           this->m_params.algoParams_.minHitsForSharingCut_,

@@ -69,9 +69,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         auto const *hitId = foundNtuplets->begin(tkid);
         for (unsigned int i = 0; i < hitsInFit; ++i) {
           auto hit = hitId[i];
+          const auto element = hh[hit];
           float ge[6];
-          cm.detFrame(hh[hit].detectorIndex()).toGlobal(hh[hit].xerrLocal(), 0, hh[hit].yerrLocal(), ge);
-          hits.col(i) << hh[hit].xGlobal(), hh[hit].yGlobal(), hh[hit].zGlobal();
+          cm.detFrame(element.detectorIndex()).toGlobal(element.xerrLocal(), 0, element.yerrLocal(), ge);
+          hits.col(i) << element.xGlobal(), element.yGlobal(), element.zGlobal();
           hits_ge.col(i) << ge[0], ge[1], ge[2], ge[3], ge[4], ge[5];
         }
         riemannFit::fastFit(acc, hits, fast_fit);
