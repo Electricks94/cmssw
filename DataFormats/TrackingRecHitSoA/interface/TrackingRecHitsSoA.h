@@ -27,6 +27,13 @@ namespace reco {
                       SOA_COLUMN(uint16_t, detectorIndex),
                       SOA_SCALAR(int32_t, offsetBPIX2));
 
+  GENERATE_SOA_LAYOUT(TrackingHitsGlobalLayout,
+                      SOA_COLUMN(float, xGlobal),
+                      SOA_COLUMN(float, yGlobal),
+                      SOA_COLUMN(float, zGlobal),
+                      SOA_COLUMN(float, rGlobal),
+                      SOA_COLUMN(uint16_t, detectorIndex));
+
   GENERATE_SOA_LAYOUT(HitModulesLayout, SOA_COLUMN(uint32_t, moduleStart));
 
   GENERATE_SOA_BLOCKS(TrackingBlocksLayout,
@@ -52,6 +59,10 @@ namespace reco {
   using TrackingRecHitSoA = TrackingHitsLayout<>;
   using TrackingRecHitView = TrackingRecHitSoA::View;
   using TrackingRecHitConstView = TrackingRecHitSoA::ConstView;
+
+  using TrackingHitsGlobal = TrackingHitsGlobalLayout<>;
+  using TrackingHitsGlobalView = TrackingHitsGlobal::View;
+  using TrackingHitsGlobalConstView = TrackingHitsGlobal::ConstView;
 
   using HitModuleSoA = HitModulesLayout<>;
   using HitModuleSoAView = HitModuleSoA::View;

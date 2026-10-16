@@ -591,7 +591,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     public:
       ALPAKA_FN_ACC void operator()(Acc2D const &acc,
                                     cms::alpakatools::AtomicPairCounter *apc,  // just to zero them
-                                    HitsMultiView hh,
+                                    GlobalHitsMultiView hh,
                                     reco::CALayersSoAConstView ll,
                                     reco::CAGraphSoAConstView cc,
                                     caStructures::CAPairSoAView cn,
@@ -600,7 +600,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                     uint32_t *nTrips,
                                     HitToCell const *__restrict__ outerHitHisto,
                                     CellToCell *cellNeighborsHisto,
-                                    AlgoParams const &params) const {
+                                    AlgoParams const &params,
+                                    const uint32_t offsetBPIX2) const {
         using Cell = CACell<TrackerTraits>;
         uint32_t maxTriplets = cn.metadata().size();
 
@@ -611,7 +612,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         // loop on outer cells
         for (uint32_t cellIndex : cms::alpakatools::uniform_elements_y(acc, *nCells)) {
           auto &thisCell = cells[cellIndex];
-          auto innerHitId = thisCell.inner_hit_id() - hh.view(0).offsetBPIX2();
+          auto innerHitId = thisCell.inner_hit_id() - offsetBPIX2;
 
           if (int(innerHitId) < 0)
             continue;
@@ -725,7 +726,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     class Kernel_find_ntuplets {
     public:
       ALPAKA_FN_ACC void operator()(Acc1D const &acc,
-                                    HitsMultiView hh,
+                                    GlobalHitsMultiView hh,
                                     const ::reco::CALayersSoAConstView &ll,
                                     const ::reco::CAGraphSoAConstView &cc,
                                     TkSoAView tracks_view,
@@ -1724,6 +1725,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     using namespace caPixelDoublets;
     using namespace caHitNtupletGeneratorKernels;
 
+    GlobalHitsMultiView globalHits;
+
+    for (int i = 0; i < hh.numViews(); ++i) {
+      HitsConstView hitsView = hh.view(i);
+      const auto recs = hitsView.records();
+      HitsGlobalConstView hitsGlobalView{recs.xGlobal(), recs.yGlobal(), recs.zGlobal(), recs.rGlobal(), recs.detectorIndex()};
+      globalHits.addView(hitsGlobalView, hitsGlobalView.metadata().size());
+    }
+
+    std::cout << "Size original hits multiView: " << hh.size() << " on memory: " << sizeof(hh) << " Size globalHits: " << globalHits.size() << " on memory: " << sizeof(globalHits) << std::endl;
+
     auto tracks_view = view.tracks();
     auto tracks_hits_view = view.trackHits();
 
@@ -1757,7 +1769,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                         kernelConnectWorkDiv,
                         Kernel_connect<TrackerTraits>{},
                         this->device_hitTuple_apc_,  // needed only to be reset, ready for next kernel
-                        hh,
+                        globalHits,
                         ll,
                         cc,
                         this->deviceTriplets_->view(),
@@ -1766,7 +1778,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                         this->device_nTriplets_->data(),
                         this->device_hitToCell_->data(),
                         this->device_cellToNeighbors_->data(),
-                        this->m_params.algoParams_);
+                        this->m_params.algoParams_,
+                        offsetBPIX2);
 
     CellToCell::template launchFinalize<Acc1D>(this->device_cellToNeighborsView_, queue);
 
@@ -1804,7 +1817,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::exec<Acc2D>(queue,
                           fishboneWorkDiv,
                           CAFishbone<TrackerTraits>{},
-                          hh,
+                          globalHits,
                           ll,
                           this->device_simpleCells_->data(),
                           this->device_nCells_->data(),
@@ -1824,7 +1837,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     alpaka::exec<Acc1D>(queue,
                         workDiv1D,
                         Kernel_find_ntuplets<TrackerTraits>{},
-                        hh,
+                        globalHits,
                         ll,
                         cc,
                         tracks_view,
@@ -1983,7 +1996,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::exec<Acc2D>(queue,
                           workDiv2D,
                           CAFishbone<TrackerTraits>{},
-                          hh,
+                          globalHits,
                           ll,
                           this->device_simpleCells_->data(),
                           this->device_nCells_->data(),
