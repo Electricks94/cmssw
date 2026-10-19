@@ -198,6 +198,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             int idx = moduleHitIndex++;
             assert(idx < PHitsInOTBarrel);
             auto hit = stripHitsSoA.view().trackingHits()[idx];
+            auto hitGlobal = stripHitsSoA.view().trackingHitsGlobal()[idx];
             hit.xLocal() = recHit.localPosition().x();
             hit.yLocal() = recHit.localPosition().y();
             hit.xerrLocal() = recHit.localPositionError().xx();
@@ -206,16 +207,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             double gx = globalPosition.x() - bs.x0();
             double gy = globalPosition.y() - bs.y0();
             double gz = globalPosition.z() - bs.z0();
-            hit.xGlobal() = gx;
-            hit.yGlobal() = gy;
-            hit.zGlobal() = gz;
-            hit.rGlobal() = sqrt(gx * gx + gy * gy);
+            hitGlobal.xGlobal() = gx;
+            hitGlobal.yGlobal() = gy;
+            hitGlobal.zGlobal() = gz;
+            hitGlobal.rGlobal() = sqrt(gx * gx + gy * gy);
             hit.iphi() = unsafe_atan2s<7>(gy, gx);
             hit.chargeAndStatus().charge = 0;
             hit.chargeAndStatus().status = {false, false, false, false, 0};
             hit.clusterSizeX() = -1;
             hit.clusterSizeY() = -1;
-            hit.detectorIndex() = modulesInPixel_ + offset;
+            hitGlobal.detectorIndex() = modulesInPixel_ + offset;
             LogDebug("Phase2OTRecHitsSoAConverter")
                 << "Local (x, y) with (xx, yy) --> (" << recHit.localPosition().x() << ", "
                 << recHit.localPosition().y() << ") with (" << recHit.localPositionError().xx() << ", "

@@ -95,16 +95,17 @@ void SiPixelMonitorRecHitsSoA::analyze(const edm::Event& iEvent, const edm::Even
   }
   auto const& rhsoa = *rhsoaHandle;
   auto const& soa2d = rhsoa.const_view().trackingHits();
+  auto const& soa2dGlobal = rhsoa.const_view().trackingHitsGlobal();
 
   uint32_t nHits_ = soa2d.metadata().size();
   hnHits->Fill(nHits_);
   auto detIds = tkGeom_->detUnitIds();
   for (uint32_t i = 0; i < nHits_; i++) {
-    DetId id = detIds[soa2d[i].detectorIndex()];
-    float xG = soa2d[i].xGlobal();
-    float yG = soa2d[i].yGlobal();
-    float zG = soa2d[i].zGlobal();
-    float rG = soa2d[i].rGlobal();
+    DetId id = detIds[soa2dGlobal[i].detectorIndex()];
+    float xG = soa2dGlobal[i].xGlobal();
+    float yG = soa2dGlobal[i].yGlobal();
+    float zG = soa2dGlobal[i].zGlobal();
+    float rG = soa2dGlobal[i].rGlobal();
     float fphi = short2phi(soa2d[i].iphi());
     uint32_t charge = soa2d[i].chargeAndStatus().charge;
     int16_t sizeX = std::ceil(float(std::abs(soa2d[i].clusterSizeX()) / 8.));
