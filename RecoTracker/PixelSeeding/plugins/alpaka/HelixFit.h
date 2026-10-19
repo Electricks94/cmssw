@@ -66,11 +66,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     void setBField(double bField) { bField_ = bField; }
     void launchRiemannKernels(const caStructures::HitsMultiView &hv,
+                              const caStructures::GlobalHitsMultiView &hvGlobal,
                               const ::reco::CAModulesConstView &fr,
                               uint32_t nhits,
                               uint32_t maxNumberOfTuples,
                               Queue &queue);
     void launchBrokenLineKernels(const caStructures::HitsMultiView &hv,
+                                 const caStructures::GlobalHitsMultiView &hvGlobal,
                                  const ::reco::CAModulesConstView &fr,
                                  uint32_t nhits,
                                  uint32_t maxNumberOfTuples,

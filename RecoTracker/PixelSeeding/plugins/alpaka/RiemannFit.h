@@ -28,6 +28,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                   TupleMultiplicity const *__restrict__ tupleMultiplicity,
                                   uint32_t nHits,
                                   caStructures::HitsMultiView hh,
+                                  caStructures::GlobalHitsMultiView hhGlobal,
                                   ::reco::CAModulesConstView cm,
                                   double *__restrict__ phits,
                                   float *__restrict__ phits_ge,
@@ -70,9 +71,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         for (unsigned int i = 0; i < hitsInFit; ++i) {
           auto hit = hitId[i];
           const auto element = hh[hit];
+          const auto elementGlobal = hhGlobal[hit];
           float ge[6];
-          cm.detFrame(element.detectorIndex()).toGlobal(element.xerrLocal(), 0, element.yerrLocal(), ge);
-          hits.col(i) << element.xGlobal(), element.yGlobal(), element.zGlobal();
+          cm.detFrame(elementGlobal.detectorIndex()).toGlobal(element.xerrLocal(), 0, element.yerrLocal(), ge);
+          hits.col(i) << elementGlobal.xGlobal(), elementGlobal.yGlobal(), elementGlobal.zGlobal();
           hits_ge.col(i) << ge[0], ge[1], ge[2], ge[3], ge[4], ge[5];
         }
         riemannFit::fastFit(acc, hits, fast_fit);
@@ -204,6 +206,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   template <typename TrackerTraits>
   void HelixFit<TrackerTraits>::launchRiemannKernels(const caStructures::HitsMultiView &hv,
+                                                     const caStructures::GlobalHitsMultiView &hvGlobal,
                                                      const ::reco::CAModulesConstView &cm,
                                                      uint32_t nhits,
                                                      uint32_t maxNumberOfTuples,
@@ -235,7 +238,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                           tuples_,
                           tupleMultiplicity_,
                           3,
-                          hv,
+                          hv, hvGlobal,
                           cm,
                           hitsDevice.data(),
                           hits_geDevice.data(),
@@ -274,7 +277,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                           tuples_,
                           tupleMultiplicity_,
                           4,
-                          hv,
+                          hv, hvGlobal,
                           cm,
                           hitsDevice.data(),
                           hits_geDevice.data(),
@@ -314,7 +317,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                             tuples_,
                             tupleMultiplicity_,
                             5,
-                            hv,
+                            hv, hvGlobal,
                             cm,
                             hitsDevice.data(),
                             hits_geDevice.data(),
@@ -353,7 +356,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                             tuples_,
                             tupleMultiplicity_,
                             5,
-                            hv,
+                            hv, hvGlobal,
                             cm,
                             hitsDevice.data(),
                             hits_geDevice.data(),

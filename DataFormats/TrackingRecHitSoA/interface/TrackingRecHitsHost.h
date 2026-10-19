@@ -29,7 +29,7 @@ namespace reco {
     // the results from the device to the host.
     // Construct the object in pageable system memory.
     explicit TrackingRecHitHost(alpaka_common::DevHost const& host, uint32_t nHits, uint32_t nModules)
-        : HitPortableCollectionHost(host, nHits, nModules + 1) {}
+        : HitPortableCollectionHost(host, nHits, nHits, nModules + 1) {}
     // Why this +1? See TrackingRecHitDevice.h constructor for an explanation
 
     // Constructor which specifies only the SoA size, to be used when copying
@@ -39,14 +39,14 @@ namespace reco {
     template <typename TQueue>
       requires(alpaka::concepts::Queue<TQueue>)
     explicit TrackingRecHitHost(TQueue queue, uint32_t nHits, uint32_t nModules)
-        : HitPortableCollectionHost(queue, nHits, nModules + 1) {}
+        : HitPortableCollectionHost(queue, nHits, nHits, nModules + 1) {}
     // Why this +1? See TrackingRecHitDevice.h constructor for an explanation
 
     // Constructor from clusters
     template <typename TQueue>
       requires(alpaka::concepts::Queue<TQueue>)
     explicit TrackingRecHitHost(TQueue queue, SiPixelClustersHost const& clusters)
-        : HitPortableCollectionHost(queue, clusters.nClusters(), clusters.view().metadata().size()) {
+        : HitPortableCollectionHost(queue, clusters.nClusters(), clusters.nClusters(), clusters.view().metadata().size()) {
       auto hitsView = view().trackingHits();
       auto modsView = view().hitModules();
 

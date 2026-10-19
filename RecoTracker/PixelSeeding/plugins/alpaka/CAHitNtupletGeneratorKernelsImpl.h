@@ -980,7 +980,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                     TkSoAView tracks_view,
                                     TkHitSoAView track_hits_view,
                                     HitContainer const *__restrict__ foundNtuplets,
-                                    HitsMultiView hh,
+                                    GlobalHitsMultiView hh,
                                     cms::alpakatools::AtomicPairCounter *apc) const {
         // clamp the number of tracks to the capacity of the SoA
         auto ntracks = std::min<int>(apc->get().first, tracks_view.metadata().size() - 1);
@@ -1428,7 +1428,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     class Kernel_print_found_ntuplets {
     public:
       ALPAKA_FN_ACC void operator()(Acc1D const &acc,
-                                    HitsMultiView hh,
+                                    GlobalHitsMultiView hh,
                                     TkSoAView tracks_view,
                                     HitContainer const *__restrict__ foundNtuplets,
                                     HitToTuple const *__restrict__ phitToTuple,
@@ -1715,6 +1715,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   template <typename TrackerTraits>
   void CAHitNtupletGeneratorKernels<TrackerTraits>::launchKernels(const HitsMultiView &hh,
+                                                                  const GlobalHitsMultiView &hhGlobal,
                                                                   uint32_t offsetBPIX2,
                                                                   uint16_t nLayers,
                                                                   TkSoABlocksView &view,
@@ -1723,17 +1724,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                                                   Queue &queue) {
     using namespace caPixelDoublets;
     using namespace caHitNtupletGeneratorKernels;
-
-    GlobalHitsMultiView globalHits;
-
-    for (int i = 0; i < hh.numViews(); ++i) {
-      HitsConstView hitsView = hh.view(i);
-      const auto recs = hitsView.records();
-      HitsGlobalConstView hitsGlobalView{recs.xGlobal(), recs.yGlobal(), recs.zGlobal(), recs.rGlobal(), recs.detectorIndex()};
-      globalHits.addView(hitsGlobalView, hitsGlobalView.metadata().size());
-    }
-
-    std::cout << "Size original hits multiView: " << hh.size() << " on memory: " << sizeof(hh) << " Size globalHits: " << globalHits.size() << " on memory: " << sizeof(globalHits) << std::endl;
 
     auto tracks_view = view.tracks();
     auto tracks_hits_view = view.trackHits();
@@ -1768,7 +1758,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                         kernelConnectWorkDiv,
                         Kernel_connect<TrackerTraits>{},
                         this->device_hitTuple_apc_,  // needed only to be reset, ready for next kernel
-                        globalHits,
+                        hhGlobal,
                         ll,
                         cc,
                         this->deviceTriplets_->view(),
@@ -1816,7 +1806,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::exec<Acc2D>(queue,
                           fishboneWorkDiv,
                           CAFishbone<TrackerTraits>{},
-                          globalHits,
+                          hhGlobal,
                           ll,
                           this->device_simpleCells_->data(),
                           this->device_nCells_->data(),
@@ -1836,7 +1826,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     alpaka::exec<Acc1D>(queue,
                         workDiv1D,
                         Kernel_find_ntuplets<TrackerTraits>{},
-                        globalHits,
+                        hhGlobal,
                         ll,
                         cc,
                         tracks_view,
@@ -1901,7 +1891,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                         tracks_view,
                         tracks_hits_view,
                         this->device_hitContainer_->data(),
-                        hh,
+                        hhGlobal,
                         this->device_hitTuple_apc_);
 
 #ifdef GPU_DEBUG
@@ -1995,7 +1985,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::exec<Acc2D>(queue,
                           workDiv2D,
                           CAFishbone<TrackerTraits>{},
-                          globalHits,
+                          hhGlobal,
                           ll,
                           this->device_simpleCells_->data(),
                           this->device_nCells_->data(),
@@ -2014,6 +2004,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   template <typename TrackerTraits>
   void CAHitNtupletGeneratorKernels<TrackerTraits>::buildDoublets(const HitsMultiView &hh,
+                                                                  const GlobalHitsMultiView &hhGlobal,
                                                                   const ::reco::CAGraphSoAConstView &cc,
                                                                   const ::reco::CALayersSoAConstView &ll,
                                                                   uint32_t offsetBPIX2,
@@ -2052,6 +2043,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                         this->device_simpleCells_->data(),
                         this->device_nCells_->data(),
                         hh,
+                        hhGlobal,
                         cc,
                         ll,
                         this->device_layerStarts_->data(),
@@ -2342,7 +2334,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         alpaka::exec<Acc1D>(queue,
                             workDiv1D,
                             Kernel_print_found_ntuplets<TrackerTraits>{},
-                            hh,
+                            hhGlobal,
                             tracks_view,
                             this->device_hitContainer_->data(),
                             this->device_hitToTuple_->data(),
@@ -2354,7 +2346,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::exec<Acc1D>(queue,
                           workDiv1D,
                           Kernel_print_found_ntuplets<TrackerTraits>{},
-                          hh,
+                          hhGlobal,
                           tracks_view,
                           this->device_hitToTuple_->data(),
                           20000,

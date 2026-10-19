@@ -30,7 +30,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   template <typename TrackerTraits>
   class CACell {
   public:
-    ALPAKA_FN_ACC ALPAKA_FN_INLINE void init(const HitsMultiView& hh,
+    ALPAKA_FN_ACC ALPAKA_FN_INLINE void init(const GlobalHitsMultiView& hh,
                                              int layerPairId,
                                              uint8_t theInnerLayer,
                                              uint8_t theOuterLayer,

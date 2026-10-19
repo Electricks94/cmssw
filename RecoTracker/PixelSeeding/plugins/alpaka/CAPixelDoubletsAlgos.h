@@ -70,12 +70,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
   template <typename TrackerTraits, alpaka::concepts::Acc TAcc>
   ALPAKA_FN_ACC ALPAKA_FN_INLINE bool zSizeCut(const TAcc& acc,
                                                const auto& element_i,
+                                               const auto& element_iGlobal,
                                                const auto& element_o,
+                                               const auto& element_oGlobal,
                                                ::reco::CALayersSoAConstView ll,
                                                AlgoParams const& params,
                                                int i,
                                                int o) {
-    const uint32_t mi = element_i.detectorIndex();
+    const uint32_t mi = element_iGlobal.detectorIndex();
     const auto first_forward = ll.layerStarts()[4];
     const auto first_bpix2 = ll.layerStarts()[1];
     bool innerB1 = mi < first_bpix2;
@@ -94,11 +96,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
     if (mes < 0)
       return false;
 
-    const uint32_t mo = element_o.detectorIndex();
+    const uint32_t mo = element_oGlobal.detectorIndex();
     auto so = element_o.clusterSizeY();
 
-    auto dz = element_i.zGlobal() - element_o.zGlobal();
-    auto dr = element_i.rGlobal() - element_o.rGlobal();
+    auto dz = element_iGlobal.zGlobal() - element_oGlobal.zGlobal();
+    auto dr = element_iGlobal.rGlobal() - element_oGlobal.rGlobal();
 
     auto innerBarrel = mi < first_forward;
     auto onlyBarrel = mo < first_forward;
@@ -126,10 +128,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
   template <typename TrackerTraits, alpaka::concepts::Acc TAcc>
   ALPAKA_FN_ACC ALPAKA_FN_INLINE bool clusterCut(const TAcc& acc,
                                                  const auto& element_i,
+                                                 const auto& element_iGlobal,
                                                  ::reco::CALayersSoAConstView ll,
                                                  AlgoParams const& params,
                                                  uint32_t i) {
-    const uint32_t mi = element_i.detectorIndex();
+    const uint32_t mi = element_iGlobal.detectorIndex();
     const auto first_bpix2 = ll.layerStarts()[1];
     const auto first_bpix3 = ll.layerStarts()[2];
     bool innerB1orB2 = mi < ll.layerStarts()[2];
@@ -172,6 +175,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
                                                         CACell<TrackerTraits>* cells,
                                                         uint32_t* nCells,
                                                         caStructures::HitsMultiView hh,
+                                                        caStructures::GlobalHitsMultiView hhGlobal,
                                                         ::reco::CAGraphSoAConstView cc,
                                                         ::reco::CALayersSoAConstView ll,
                                                         uint32_t const* __restrict__ offsets,
@@ -240,6 +244,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
       auto i = (0 == pairLayerId) ? j : j - innerLayerCumulativeSize[pairLayerId - 1];
       i += offsets[inner];
       const auto element_i = hh[i];
+      const auto element_iGlobal = hhGlobal[i];
 
       ALPAKA_ASSERT_ACC(i >= offsets[inner]);
       ALPAKA_ASSERT_ACC(i < offsets[inner + 1]);
@@ -253,7 +258,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
              offsets[inner + 1]);
 #endif
       // found hit corresponding to our worker thread, now do the job
-      if (element_i.detectorIndex() > ll.layerStarts()[ll.metadata().size() - 1]) {  //TODO use cc
+      if (element_iGlobal.detectorIndex() > ll.layerStarts()[ll.metadata().size() - 1]) {  //TODO use cc
 #ifdef DOUBLETS_DEBUG
         printf("Killed here 1\n");
 #endif
@@ -266,8 +271,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
       if ( ((inner<3) & (outer>3)) && bpos!=fpos) continue;
       */
 
-      auto zi = element_i.zGlobal();
-      auto ri = element_i.rGlobal();
+      auto zi = element_iGlobal.zGlobal();
+      auto ri = element_iGlobal.rGlobal();
 
       // cut on inner coordinate (z or r depending on layer)
       auto valInner = ll.isBarrel()[inner] ? zi : ri;
@@ -275,7 +280,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
 #ifdef DOUBLETS_DEBUG
         printf("Killed here 2 --> valInner: %f [index: %d], minInner: %f, maxInner: %f\n",
                valInner,
-               element_i.detectorIndex(),
+               element_iGlobal.detectorIndex(),
                cc.minInner()[pairLayerId],
                cc.maxInner()[pairLayerId]);
 #endif
@@ -284,11 +289,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
 
 #ifdef DOUBLETS_DEBUG
       if (doClusterCut && outer > pixelTopology::last_barrel_layer)
-        printf("clustCut: %d %d \n", i, clusterCut<TrackerTraits, TAcc>(acc, element_i, ll, params, i));
+        printf("clustCut: %d %d \n", i, clusterCut<TrackerTraits, TAcc>(acc, element_i, element_iGlobal, ll, params, i));
 #endif
 
       if (doClusterCut && outer > pixelTopology::last_barrel_layer &&
-          clusterCut<TrackerTraits, TAcc>(acc, element_i, ll, params, i)) {
+          clusterCut<TrackerTraits, TAcc>(acc, element_i, element_iGlobal, ll, params, i)) {
 #ifdef DOUBLETS_DEBUG
         printf("Killed here 4\n");
 #endif
@@ -351,12 +356,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
           // FIXME implement alpaka::ldg and use it here? or is it const* __restrict__ enough?
           auto oi = p[pIndex];
           const auto element_oi = hh[oi];
+          const auto element_oiGlobal = hhGlobal[oi];
           ALPAKA_ASSERT_ACC(oi >= offsets[outer]);
           ALPAKA_ASSERT_ACC(oi < offsets[outer + 1]);
 #ifdef DOUBLETS_DEBUG
           printf("Exploring couple i: %d o: %d\n", i, oi);
 #endif
-          auto mo = element_oi.detectorIndex();
+          auto mo = element_oiGlobal.detectorIndex();
 
           // invalid
           if (mo > pixelClustering::maxNumModules) {  //FIXME use cc?
@@ -366,8 +372,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
             continue;
           }
 
-          auto zo = element_oi.zGlobal();
-          auto ro = element_oi.rGlobal();
+          auto zo = element_oiGlobal.zGlobal();
+          auto ro = element_oiGlobal.rGlobal();
 
           // cut on outer coordinate (z or r depending on layer)
           auto valOuter = ll.isBarrel()[outer] ? zo : ro;
@@ -396,7 +402,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
             continue;
           }
 
-          if (params.cellZ0Cut_ > 0. && z0cutoff(element_oi)) {
+          if (params.cellZ0Cut_ > 0. && z0cutoff(element_oiGlobal)) {
 #ifdef DOUBLETS_DEBUG
             printf("Killed here 5\n");
 #endif
@@ -413,16 +419,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
             continue;
           }
 #ifdef DOUBLETS_DEBUG
-          printf("zSizeCut: %d %d %d \n", i, oi, zSizeCut<TrackerTraits, TAcc>(acc, element_i, element_oi, ll, params, i, oi));
+          printf("zSizeCut: %d %d %d \n", i, oi, zSizeCut<TrackerTraits, TAcc>(acc, element_i, element_iGlobal, element_oi, element_oiGlobal, ll, params, i, oi));
 #endif
-          if (doZSizeCut && zSizeCut<TrackerTraits, TAcc>(acc, element_i, element_oi, ll, params, i, oi)) {
+          if (doZSizeCut && zSizeCut<TrackerTraits, TAcc>(acc, element_i, element_iGlobal, element_oi, element_oiGlobal, ll, params, i, oi)) {
 #ifdef DOUBLETS_DEBUG
             printf("Killed here 7\n");
 #endif
             continue;
           }
 
-          if (cc.ptCuts()[pairLayerId] > 0. && ptcut(element_oi, idphi)) {
+          if (cc.ptCuts()[pairLayerId] > 0. && ptcut(element_oiGlobal, idphi)) {
 #ifdef DOUBLETS_DEBUG
             printf("Killed here 8\n");
 #endif
@@ -441,7 +447,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
           }
 
           outerHitHisto->count(acc, oi - hh.view(0).offsetBPIX2());
-          cells[ind].init(hh, pairLayerId, inner, outer, i, oi);
+          cells[ind].init(hhGlobal, pairLayerId, inner, outer, i, oi);
 #ifdef DOUBLETS_DEBUG
           printf("doublet: %d layerPair: %d inner: %d outer: %d i: %d oi: %d\n", ind, pairLayerId, inner, outer, i, oi);
 #endif

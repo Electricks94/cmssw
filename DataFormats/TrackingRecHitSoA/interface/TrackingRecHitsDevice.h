@@ -30,7 +30,7 @@ namespace reco {
     // Constructor which specifies only the SoA size, to be used when copying the results from host to device
     template <typename TQueue>
     explicit TrackingRecHitDevice(TQueue queue, uint32_t nHits, uint32_t nModules)
-        : HitPortableCollectionDevice<TDev>(queue, nHits, nModules + 1) {}
+        : HitPortableCollectionDevice<TDev>(queue, nHits, nHits, nModules + 1) {}
 
     // N.B. why this + 1? Because the HitModulesLayout is holding the
     // moduleStart vector that is a cumulative sum of all the hits
@@ -42,7 +42,7 @@ namespace reco {
     // Constructor from clusters
     template <typename TQueue>
     explicit TrackingRecHitDevice(TQueue queue, SiPixelClustersDevice<TDev> const& clusters)
-        : HitPortableCollectionDevice<TDev>(queue, clusters.nClusters(), clusters.view().metadata().size()),
+        : HitPortableCollectionDevice<TDev>(queue, clusters.nClusters(), clusters.nClusters(), clusters.view().metadata().size()),
           offsetBPIX2_{clusters.offsetBPIX2()} {
       auto hitsView = this->view().trackingHits();
       auto modsView = this->view().hitModules();
