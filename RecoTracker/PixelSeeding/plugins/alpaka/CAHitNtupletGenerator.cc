@@ -438,6 +438,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     HitsMultiView trackingHits(
         hitsRefProdVector, [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().trackingHits(); });
 
+    GlobalHitsMultiView trackingHitsGlobal(
+        hitsRefProdVector, [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().trackingHitsGlobal(); });
+
     std::vector<int> hitModulesSizes;
     for (const auto& hit : hitsRefProdVector) {
       hitModulesSizes.push_back(static_cast<int>(hit->nModules()));
@@ -470,18 +473,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     GPUKernels kernels(m_params, nHits, offsetBPIX2, nDoublets, nTracks, layers.metadata().size(), queue);
 
     kernels.prepareHits(trackingHits, hitModules, layers, queue);
-    kernels.buildDoublets(trackingHits, graph, layers, offsetBPIX2, queue);
+    kernels.buildDoublets(trackingHits, trackingHitsGlobal, graph, layers, offsetBPIX2, queue);
     kernels.launchKernels(
-        trackingHits, offsetBPIX2, layers.metadata().size(), trackCollection.view(), layers, graph, queue);
+        trackingHits, trackingHitsGlobal, offsetBPIX2, layers.metadata().size(), trackCollection.view(), layers, graph, queue);
 
     HelixFit fitter(bfield, m_params.algoParams_.fitNas4_);
     fitter.allocate(kernels.tupleMultiplicity(), tracks, kernels.hitContainer());
     if (m_params.algoParams_.useRiemannFit_) {
       fitter.launchRiemannKernels(
-          trackingHits, modules, trackingHits.size(), TrackerTraits::maxNumberOfQuadruplets, queue);
+          trackingHits, trackingHitsGlobal, modules, trackingHits.size(), TrackerTraits::maxNumberOfQuadruplets, queue);
     } else {
       fitter.launchBrokenLineKernels(
-          trackingHits, modules, trackingHits.size(), TrackerTraits::maxNumberOfQuadruplets, queue);
+          trackingHits, trackingHitsGlobal, modules, trackingHits.size(), TrackerTraits::maxNumberOfQuadruplets, queue);
     }
     kernels.classifyTuples(trackingHits, tracks, queue);
 #ifdef GPU_DEBUG

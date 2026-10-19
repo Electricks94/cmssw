@@ -16,21 +16,24 @@ namespace reco {
                       SOA_COLUMN(float, yLocal),
                       SOA_COLUMN(float, xerrLocal),
                       SOA_COLUMN(float, yerrLocal),
-                      SOA_COLUMN(float, xGlobal),
-                      SOA_COLUMN(float, yGlobal),
-                      SOA_COLUMN(float, zGlobal),
-                      SOA_COLUMN(float, rGlobal),
                       SOA_COLUMN(int16_t, iphi),
                       SOA_COLUMN(SiPixelHitStatusAndCharge, chargeAndStatus),
                       SOA_COLUMN(int16_t, clusterSizeX),
                       SOA_COLUMN(int16_t, clusterSizeY),
-                      SOA_COLUMN(uint16_t, detectorIndex),
                       SOA_SCALAR(int32_t, offsetBPIX2));
+
+  GENERATE_SOA_LAYOUT(TrackingHitsGlobalLayout,
+                      SOA_COLUMN(float, xGlobal),
+                      SOA_COLUMN(float, yGlobal),
+                      SOA_COLUMN(float, zGlobal),
+                      SOA_COLUMN(float, rGlobal),
+                      SOA_COLUMN(uint16_t, detectorIndex));
 
   GENERATE_SOA_LAYOUT(HitModulesLayout, SOA_COLUMN(uint32_t, moduleStart));
 
   GENERATE_SOA_BLOCKS(TrackingBlocksLayout,
                       SOA_BLOCK(trackingHits, TrackingHitsLayout),
+                      SOA_BLOCK(trackingHitsGlobal, TrackingHitsGlobalLayout),
                       SOA_BLOCK(hitModules, HitModulesLayout))
 
   // N.B. this layout is not really included by default in the hits SoA
@@ -50,17 +53,18 @@ namespace reco {
                       SOA_SCALAR(int32_t, endCapZNeg))
 
   using TrackingRecHitSoA = TrackingHitsLayout<>::AoSWrapper;
-  ;
   using TrackingRecHitView = TrackingRecHitSoA::View;
   using TrackingRecHitConstView = TrackingRecHitSoA::ConstView;
 
+  using TrackingHitsGlobal = TrackingHitsGlobalLayout<>::AoSWrapper;
+  using TrackingHitsGlobalView = TrackingHitsGlobal::View;
+  using TrackingHitsGlobalConstView = TrackingHitsGlobal::ConstView;
+
   using HitModuleSoA = HitModulesLayout<>::AoSWrapper;
-  ;
   using HitModuleSoAView = HitModuleSoA::View;
   using HitModuleSoAConstView = HitModuleSoA::ConstView;
 
   using TrackingBlocksSoA = TrackingBlocksLayout<>::AoSWrapper;
-  ;
   using TrackingBlocksSoAView = TrackingBlocksSoA::View;
   using TrackingBlocksSoAConstView = TrackingBlocksSoA::ConstView;
 

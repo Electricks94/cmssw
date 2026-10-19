@@ -23,6 +23,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
                                   CACell<TrackerTraits>* cells,
                                   uint32_t* nCells,
                                   caStructures::HitsMultiView hh,
+                                  caStructures::GlobalHitsMultiView hhGlobal,
                                   ::reco::CAGraphSoAConstView cc,
                                   ::reco::CALayersSoAConstView ll,
                                   uint32_t const* __restrict__ offsets,
@@ -30,7 +31,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::caPixelDoublets {
                                   HitToCell* outerHitHisto,
                                   AlgoParams const& params) const {
       doubletsFromHisto<TrackerTraits>(
-          acc, maxNumOfDoublets, cells, nCells, hh, cc, ll, offsets, phiBinner, outerHitHisto, params);
+          acc, maxNumOfDoublets, cells, nCells, hh, hhGlobal, cc, ll, offsets, phiBinner, outerHitHisto, params);
     }
   };
 

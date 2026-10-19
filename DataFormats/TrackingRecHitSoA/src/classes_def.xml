@@ -5,6 +5,8 @@
 
   <class name="reco::TrackingHitsLayout<128, false>::AoSWrapper"/>
   <class name="reco::TrackingHitsLayout<128, false>::RecordType"/>
+  <class name="reco::TrackingHitsGlobalLayout<128, false>::AoSWrapper"/>
+  <class name="reco::TrackingHitsGlobalLayout<128, false>::RecordType"/>
   <class name="reco::HitModulesLayout<128, false>::AoSWrapper"/>
   <class name="reco::HitModulesLayout<128, false>::RecordType"/>
   <class name="reco::TrackingBlocksLayout<128, false>::AoSWrapper"/>

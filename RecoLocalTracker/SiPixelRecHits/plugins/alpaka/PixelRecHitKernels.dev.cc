@@ -42,10 +42,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
       TrackingRecHitsSoACollection hits_d(queue, clusters_d);
 
-      const uint32_t groups = divide_up_by(clusters_d.view().metadata().size(), 256);
-      auto workDiv = make_workdiv<Acc1D>(groups, 256);
-      alpaka::exec<Acc1D>(queue, workDiv, CopyModuleStartKernel{}, hits_d.view().hitModules(), clusters_d.view());
-
       int activeModulesWithDigis = digis_d.nModules();
 
       // protect from empty events
@@ -68,7 +64,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                             digis_d.nDigis(),
                             digis_d.nModules(),
                             clusters_d.view(),
-                            hits_d.view().trackingHits());
+                            hits_d.view().trackingHits(), hits_d.view().trackingHitsGlobal());
 #ifdef GPU_DEBUG
         alpaka::wait(queue);
 #endif

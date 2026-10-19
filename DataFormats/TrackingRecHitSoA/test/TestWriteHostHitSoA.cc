@@ -38,8 +38,9 @@ namespace edmtest {
   void TestWriteHostHitSoA::produce(edm::StreamID, edm::Event& iEvent, edm::EventSetup const&) const {
     HitsOnHost hits(cms::alpakatools::host(), hitSize_, 100);
     auto hitsView = hits.view().trackingHits();
+    auto hitsViewGlobal = hits.view().trackingHitsGlobal();
     for (unsigned int i = 0; i < hitSize_; ++i) {
-      hitsView[i].xGlobal() = float(i);
+      hitsViewGlobal[i].xGlobal() = float(i);
     }
     hitsView.offsetBPIX2() = offsetBPIX2_;
     iEvent.emplace(putToken_, std::move(hits));

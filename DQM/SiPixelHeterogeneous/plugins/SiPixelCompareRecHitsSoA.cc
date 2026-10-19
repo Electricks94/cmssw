@@ -119,7 +119,9 @@ void SiPixelCompareRecHitsSoA::analyzeSeparate(U tokenRef, V tokenTar, const edm
   const auto& rhsoaTar = *rhsoaHandleTar;
 
   auto const& soa2dRef = rhsoaRef.const_view().trackingHits();
+  auto const& soa2dRefGlobal = rhsoaRef.const_view().trackingHitsGlobal();
   auto const& soa2dTar = rhsoaTar.const_view().trackingHits();
+  auto const& soa2dTarGlobal = rhsoaTar.const_view().trackingHitsGlobal();
 
   uint32_t nHitsRef = soa2dRef.metadata().size();
   uint32_t nHitsTar = soa2dTar.metadata().size();
@@ -130,7 +132,7 @@ void SiPixelCompareRecHitsSoA::analyzeSeparate(U tokenRef, V tokenTar, const edm
   std::unordered_map<uint16_t, std::vector<size_t>> detectorIndexMap;
   detectorIndexMap.reserve(nHitsTar);
   for (size_t j = 0; j < nHitsTar; ++j) {
-    detectorIndexMap[soa2dTar[j].detectorIndex()].push_back(j);
+    detectorIndexMap[soa2dTarGlobal[j].detectorIndex()].push_back(j);
   }
 
   auto detIds = tkGeom_->detUnitIds();
@@ -139,7 +141,7 @@ void SiPixelCompareRecHitsSoA::analyzeSeparate(U tokenRef, V tokenTar, const edm
   for (uint32_t i = 0; i < nHitsRef; i++) {
     float minD = mind2cut_;
     uint32_t matchedHit = invalidHit_;
-    uint16_t indRef = soa2dRef[i].detectorIndex();
+    uint16_t indRef = soa2dRefGlobal[i].detectorIndex();
     float xLocalRef = soa2dRef[i].xLocal();
     float yLocalRef = soa2dRef[i].yLocal();
 
@@ -277,4 +279,3 @@ void SiPixelCompareRecHitsSoA::fillDescriptions(edm::ConfigurationDescriptions& 
 
 #include "FWCore/Framework/interface/MakerMacros.h"
 DEFINE_FWK_MODULE(SiPixelCompareRecHitsSoA);
-

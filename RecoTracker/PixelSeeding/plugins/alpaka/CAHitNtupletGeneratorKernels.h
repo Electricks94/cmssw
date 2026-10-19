@@ -161,6 +161,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                      Queue& queue);
 
     void launchKernels(const HitsMultiView& hh,
+                       const GlobalHitsMultiView &hhGlobal,
                        uint32_t offsetBPIX2,
                        uint16_t nLayers,
                        TkSoABlocksView& view,
@@ -171,6 +172,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     void classifyTuples(const HitsMultiView& hh, TkSoAView& track_view, Queue& queue);
 
     void buildDoublets(const HitsMultiView& hh,
+                       const GlobalHitsMultiView &hhGlobal,
                        const ::reco::CAGraphSoAConstView& cc,
                        const ::reco::CALayersSoAConstView& ll,
                        uint32_t offsetBPIX2,

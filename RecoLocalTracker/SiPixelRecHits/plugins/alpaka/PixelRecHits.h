@@ -26,16 +26,6 @@
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
   namespace pixelRecHits {
 
-    struct CopyModuleStartKernel {
-      ALPAKA_FN_ACC void operator()(Acc1D const& acc,
-                                    ::reco::HitModuleSoAView modsView,
-                                    SiPixelClustersSoAConstView clustersView) const {
-        for (auto i : cms::alpakatools::uniform_elements(acc, clustersView.metadata().size())) {
-          modsView[i].moduleStart() = clustersView[i].clusModuleStart();
-        }
-      }
-    };
-
     template <typename TrackerTraits>
     class GetHits {
     public:
@@ -46,7 +36,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                     uint32_t numElements,
                                     uint32_t nonEmptyModules,
                                     SiPixelClustersSoAConstView clusters,
-                                    ::reco::TrackingRecHitView hits) const {
+                                    ::reco::TrackingRecHitView hits, ::reco::TrackingHitsGlobalView hitsGlobal) const {
         ALPAKA_ASSERT_ACC(cpeParams);
 
         // outer loop: one block per module
@@ -197,7 +187,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               // store it
               hits[h].chargeAndStatus().charge = clusParams.charge[ic];
               hits[h].chargeAndStatus().status = clusParams.status[ic];
-              hits[h].detectorIndex() = me;
+              hitsGlobal[h].detectorIndex() = me;
 
               // local coordinates for computations
               float xl, yl;
@@ -218,10 +208,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               yg -= bs->y;
               zg -= bs->z;
 
-              hits[h].xGlobal() = xg;
-              hits[h].yGlobal() = yg;
-              hits[h].zGlobal() = zg;
-              hits[h].rGlobal() = alpaka::math::sqrt(acc, xg * xg + yg * yg);
+              hitsGlobal[h].xGlobal() = xg;
+              hitsGlobal[h].yGlobal() = yg;
+              hitsGlobal[h].zGlobal() = zg;
+              hitsGlobal[h].rGlobal() = alpaka::math::sqrt(acc, xg * xg + yg * yg);
               hits[h].iphi() = unsafe_atan2s<7>(yg, xg);
             }
             alpaka::syncBlockThreads(acc);

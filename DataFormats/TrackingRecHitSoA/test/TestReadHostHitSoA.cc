@@ -39,13 +39,14 @@ namespace edmtest {
   void TestReadHostHitSoA::analyze(edm::StreamID, edm::Event const& iEvent, edm::EventSetup const&) const {
     auto const& hits = iEvent.get(getToken_);
     auto hitsView = hits.view().trackingHits();
+    auto hitsViewGlobal = hits.view().trackingHitsGlobal();
 
     std::cout << "hitsView.metadata().size() = " << hitsView.metadata().size() << std::endl;
     assert(hitsView.metadata().size() == int(hitSize_));
     assert(hitsView.offsetBPIX2() == int(offsetBPIX2_));
 
     for (int i = 0; i < hitsView.metadata().size(); ++i) {
-      if (hitsView[i].xGlobal() != float(i)) {
+      if (hitsViewGlobal[i].xGlobal() != float(i)) {
         throw cms::Exception("TestWriteHostHitSoA Failure") << "TestReadHostHitSoA::analyze, entry. i = " << i;
       }
     }
