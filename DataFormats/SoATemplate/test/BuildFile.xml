@@ -4,6 +4,7 @@
     <use name="catch2"/>
     <use name="cuda"/>
     <use name="DataFormats/SoATemplate"/>
+    <flags CUDA_FLAGS="-Xptxas=-v"/>
   </bin>
 </iftool>
 
