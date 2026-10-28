@@ -391,14 +391,12 @@ namespace cms::soa {
     SOA_HOST_DEVICE SOA_INLINE SoAValue(size_type i, typename C::Scalar* col, byte_size_type stride)
         : val_(col + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(stride)),
           crCol_(col),
-          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(stride)),
-          stride_(stride) {}
+          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(stride)) {}
 
     SOA_HOST_DEVICE SOA_INLINE SoAValue(size_type i, SoAParametersImpl<SoAColumnType::eigen, C> params)
         : val_(params.addr_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(params.stride_)),
           crCol_(params.addr_),
-          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(params.stride_)),
-          stride_(params.stride_) {}
+          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(params.stride_)) {}
 
     SOA_HOST_DEVICE SOA_INLINE MapType& operator()() { return val_; }
 
@@ -419,13 +417,11 @@ namespace cms::soa {
 
     using ValueType = typename C::Scalar;
     static constexpr auto valueSize = sizeof(typename C::Scalar);
-    SOA_HOST_DEVICE SOA_INLINE byte_size_type stride() const { return stride_; }
 
   private:
     MapType val_;
     const Ptr crCol_;
     CMapType cVal_;
-    byte_size_type stride_;
   };
 
   // Matryoshka template to avoid commas inside macros
@@ -510,13 +506,11 @@ namespace cms::soa {
 
     SOA_HOST_DEVICE SOA_INLINE SoAConstValue(size_type i, typename C::Scalar* col, byte_size_type stride)
         : crCol_(col),
-          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(stride)),
-          stride_(stride) {}
+          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(stride)) {}
 
     SOA_HOST_DEVICE SOA_INLINE SoAConstValue(size_type i, SoAConstParametersImpl<SoAColumnType::eigen, C> params)
         : crCol_(params.addr_),
-          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(params.stride_)),
-          stride_(params.stride_) {}
+          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(params.stride_)) {}
 
     SOA_HOST_DEVICE SOA_INLINE const CMapType& operator()() const { return cVal_; }
 
@@ -527,12 +521,9 @@ namespace cms::soa {
     using ValueType = typename C::Scalar;
     static constexpr auto valueSize = sizeof(typename C::Scalar);
 
-    SOA_HOST_DEVICE SOA_INLINE byte_size_type stride() const { return stride_; }
-
   private:
     const typename C::Scalar* __restrict__ crCol_;
     CMapType cVal_;
-    byte_size_type stride_;
   };
 
   // Matryoshka template to avoid commas inside macros
