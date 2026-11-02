@@ -49,7 +49,7 @@ namespace hgcal {
 
   // @short fill full SoA column with data from vector for any type
   template <typename T, typename P>
-  void fill_SoA_eigen_row(P& soa, const std::vector<std::vector<T>>& values, const size_t row) {
+  void fill_SoA_eigen_row(P soa, const std::vector<std::vector<T>>& values, const size_t row) {
     if (row >= values.size()) {
       cms::Exception ex("InvalidData");
       ex << " Tried to copy row " << row << " to SoA, but only have " << values.size() << " values in JSON!";

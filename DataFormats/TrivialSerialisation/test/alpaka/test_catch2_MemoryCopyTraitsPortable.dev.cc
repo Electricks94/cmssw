@@ -128,7 +128,7 @@ TEST_CASE("Test MemoryCopyTraits with portable types", "[MemoryCopyTraits][Porta
         source.view()[i].id() = i;
         source.view()[i].flags() = std::array<short, 4>{
             {static_cast<short>(i), static_cast<short>(i + 1), static_cast<short>(i + 2), static_cast<short>(i + 3)}};
-        source.view()[i].m = Eigen::Matrix<double, 3, 6>::Identity() * i;
+        source.view()[i].m() = Eigen::Matrix<double, 3, 6>::Identity() * i;
       }
 
       // Get properties from source
@@ -216,7 +216,7 @@ TEST_CASE("Test MemoryCopyTraits with portable types", "[MemoryCopyTraits][Porta
         refHost.view()[i].id() = i + 100;
         refHost.view()[i].flags() = std::array<short, 4>{
             {static_cast<short>(i), static_cast<short>(i + 1), static_cast<short>(i + 2), static_cast<short>(i + 3)}};
-        refHost.view()[i].m = Eigen::Matrix<double, 3, 6>::Identity() * i;
+        refHost.view()[i].m() = Eigen::Matrix<double, 3, 6>::Identity() * i;
       }
 
       // Create a device collection and copy the reference data to it

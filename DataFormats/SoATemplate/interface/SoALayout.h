@@ -740,28 +740,37 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
 /**
  * Generator of member initialization for constructor of element subclass
  */
-#define _DECLARE_VIEW_CONST_ELEM_MEMBER_INIT_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS, DATA) \
-  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, (BOOST_PP_CAT(NAME, _)(DATA, NAME)))
+#define _DECLARE_VIEW_CONST_ELEM_MEMBER_INIT_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, (BOOST_PP_CAT(NAME, _)(NAME)))
 
 /* declare AoS-like element value args for contructor; these should expand,for columns only */
 #define _DECLARE_VIEW_CONST_ELEM_MEMBER_INIT(R, DATA, TYPE_NAME)                            \
   BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
               BOOST_PP_EMPTY(),                                                             \
-              BOOST_PP_EXPAND(_DECLARE_VIEW_CONST_ELEM_MEMBER_INIT_IMPL BOOST_PP_TUPLE_PUSH_BACK(TYPE_NAME, DATA)))
+              BOOST_PP_EXPAND(_DECLARE_VIEW_CONST_ELEM_MEMBER_INIT_IMPL TYPE_NAME))
 
 /**
  * Declaration of the members accessors of the const element subclass
  */
 // clang-format off
 #define _DECLARE_VIEW_CONST_ELEMENT_ACCESSOR_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                    \
-  _APPLY_FOR_NON_SCALAR(VALUE_TYPE,                                                                                    \
+  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
+    /* Scalar */                                                                                                       \
+    ,                                                                                                                  \
+    /* Column */                                                                                                       \
     SOA_HOST_DEVICE SOA_INLINE                                                                                         \
-        const typename cms::soa::SoAConstValue_ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template       \
-                DataType<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::template                                     \
-                    Alignment<conditionalAlignment>::template ConstValue<restrictQualify>::RefToConst                  \
-        NAME() const {                                                                                                 \
-      return BOOST_PP_CAT(NAME, _)();                                                                                  \
-    })
+    const typename cms::soa::SoAConstValue_ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template           \
+          DataType<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::template                                           \
+          Alignment<conditionalAlignment>::template ConstValue<restrictQualify>::RefToConst                            \
+          NAME() const { return BOOST_PP_CAT(NAME, _)(idx_); }                                                         \
+    ,                                                                                                                  \
+    /* Eigen column */                                                                                                 \
+    SOA_HOST_DEVICE SOA_INLINE                                                                                         \
+    const typename cms::soa::SoAConstValue_ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template           \
+          DataType<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::template                                           \
+          Alignment<conditionalAlignment>::template ConstValue<restrictQualify>::CMapType                              \
+          NAME() const { return BOOST_PP_CAT(NAME, _)(idx_); }                                                         \
+  )
 // clang-format on
 
 #define _DECLARE_VIEW_CONST_ELEMENT_ACCESSOR(R, DATA, TYPE_NAME)                            \
@@ -1084,13 +1093,42 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
 /**
  * Generator of element members initializer.
  */
-#define _DECLARE_VIEW_ELEM_MEMBER_INIT_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS, DATA) \
-  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, (NAME(DATA, NAME)))
+#define _DECLARE_VIEW_ELEM_MEMBER_INIT_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS) \
+  _APPLY_FOR_NON_SCALAR(VALUE_TYPE, (BOOST_PP_CAT(NAME, _)(NAME)))
 
 #define _DECLARE_VIEW_ELEM_MEMBER_INIT(R, DATA, TYPE_NAME)                                  \
   BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
               BOOST_PP_EMPTY(),                                                             \
-              BOOST_PP_EXPAND(_DECLARE_VIEW_ELEM_MEMBER_INIT_IMPL BOOST_PP_TUPLE_PUSH_BACK(TYPE_NAME, DATA)))
+              BOOST_PP_EXPAND(_DECLARE_VIEW_ELEM_MEMBER_INIT_IMPL TYPE_NAME))
+
+/**
+ * Declaration of the members accessors of the element subclass
+ */
+// clang-format off
+#define _DECLARE_VIEW_ELEMENT_ACCESSOR_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS)                                          \
+  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
+    /* Scalar */                                                                                                       \
+    ,                                                                                                                  \
+    /* Column */                                                                                                       \
+    SOA_HOST_DEVICE SOA_INLINE                                                                                         \
+    typename cms::soa::SoAValue_ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template                      \
+             DataType<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::template                                        \
+             Alignment<conditionalAlignment>::template Value<restrictQualify>::Ref                                     \
+        NAME() {return BOOST_PP_CAT(NAME, _)(idx_); }                                                                  \
+    ,                                                                                                                  \
+    /* Eigen column */                                                                                                 \
+    SOA_HOST_DEVICE SOA_INLINE                                                                                         \
+    typename cms::soa::SoAValue_ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template                      \
+             DataType<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::template                                        \
+             Alignment<conditionalAlignment>::template Value<restrictQualify>::MapType                                 \
+        NAME() {return BOOST_PP_CAT(NAME, _)(idx_); }                                                                  \
+  )
+// clang-format on
+
+#define _DECLARE_VIEW_ELEMENT_ACCESSOR(R, DATA, TYPE_NAME)                                  \
+  BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
+              BOOST_PP_EMPTY(),                                                             \
+              _DECLARE_VIEW_ELEMENT_ACCESSOR_IMPL TYPE_NAME)
 
 /**
  * Generator of the member-by-member copy operator of the element subclass.
@@ -1125,7 +1163,7 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
   typename cms::soa::SoAValue_ColumnType<BOOST_PP_CAT(Metadata::ColumnTypeOf_, NAME)>::template                      \
               DataType<typename BOOST_PP_CAT(Metadata::TypeOf_, NAME)>::template                                     \
                   Alignment<conditionalAlignment>::template Value<restrictQualify>                                   \
-      NAME;)
+      BOOST_PP_CAT(NAME, _);)
 // clang-format on
 
 #define _DECLARE_VIEW_ELEMENT_VALUE_MEMBER(R, DATA, TYPE_NAME)                              \
@@ -1488,15 +1526,17 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       /* AoS-like accessor (const) */                                                                                  \
       struct const_element {                                                                                           \
         SOA_HOST_DEVICE SOA_INLINE                                                                                     \
-        const_element(size_type                                                                                        \
-           _APPEND_TOKEN(_ITERATE_ON_ALL(_DECLARE_CONST_VIEW_ELEMENT_VALUE_ARG, ~, __VA_ARGS__), _soa_impl_index)      \
-           _APPEND_COMMA(_ITERATE_ON_ALL(_DECLARE_CONST_VIEW_ELEMENT_VALUE_ARG, ~, __VA_ARGS__)))                      \
-           _APPEND_LIST_INIT(_ITERATE_ON_ALL(_DECLARE_VIEW_CONST_ELEM_MEMBER_INIT, _soa_impl_index, __VA_ARGS__)) {}   \
+        const_element(const size_type _soa_impl_index                                                                  \
+                      _APPEND_COMMA(_ITERATE_ON_ALL(_DECLARE_CONST_VIEW_ELEMENT_VALUE_ARG, ~, __VA_ARGS__)))           \
+          : idx_(_soa_impl_index)                                                                                      \
+            _APPEND_COMMA(_ITERATE_ON_ALL(_DECLARE_VIEW_CONST_ELEM_MEMBER_INIT, ~, __VA_ARGS__)) {}                    \
+                                                                                                                       \
         _ITERATE_ON_ALL(_DECLARE_VIEW_CONST_ELEMENT_ACCESSOR, ~, __VA_ARGS__)                                          \
                                                                                                                        \
         ENUM_IF_VALID(_ITERATE_ON_ALL(GENERATE_CONST_METHODS, ~, __VA_ARGS__))                                         \
                                                                                                                        \
         private:                                                                                                       \
+        const size_type idx_;                                                                                          \
         _ITERATE_ON_ALL(_DECLARE_VIEW_CONST_ELEMENT_VALUE_MEMBER, ~, __VA_ARGS__)                                      \
       };                                                                                                               \
                                                                                                                        \
@@ -1662,10 +1702,14 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       /* AoS-like accessor (mutable) */                                                                                \
       struct element {                                                                                                 \
         SOA_HOST_DEVICE SOA_INLINE                                                                                     \
-        element(size_type                                                                                              \
-                _APPEND_TOKEN(_ITERATE_ON_ALL(_DECLARE_VIEW_ELEMENT_VALUE_ARG, ~, __VA_ARGS__), _soa_impl_index)       \
+        element(const size_type _soa_impl_index                                                                        \
                 _APPEND_COMMA(_ITERATE_ON_ALL(_DECLARE_VIEW_ELEMENT_VALUE_ARG, ~, __VA_ARGS__)))                       \
-                _APPEND_LIST_INIT(_ITERATE_ON_ALL(_DECLARE_VIEW_ELEM_MEMBER_INIT, _soa_impl_index, __VA_ARGS__)) {}    \
+          : idx_(_soa_impl_index)                                                                                      \
+                _APPEND_COMMA(_ITERATE_ON_ALL(_DECLARE_VIEW_ELEM_MEMBER_INIT, _soa_impl_index, __VA_ARGS__)) {}        \
+                                                                                                                       \
+        _ITERATE_ON_ALL(_DECLARE_VIEW_CONST_ELEMENT_ACCESSOR, ~, __VA_ARGS__)                                          \
+        _ITERATE_ON_ALL(_DECLARE_VIEW_ELEMENT_ACCESSOR, ~, __VA_ARGS__)                                                \
+                                                                                                                       \
         SOA_HOST_DEVICE SOA_INLINE                                                                                     \
         element& operator=(const element& _soa_impl_other) {                                                           \
           _ITERATE_ON_ALL(_DECLARE_VIEW_ELEMENT_VALUE_COPY, ~, __VA_ARGS__)                                            \
@@ -1686,7 +1730,9 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
         ENUM_IF_VALID(_ITERATE_ON_ALL(GENERATE_METHODS, ~, __VA_ARGS__))                                               \
         ENUM_IF_VALID(_ITERATE_ON_ALL(GENERATE_CONST_METHODS, ~, __VA_ARGS__))                                         \
                                                                                                                        \
-        _ITERATE_ON_ALL(_DECLARE_VIEW_ELEMENT_VALUE_MEMBER, ~, __VA_ARGS__)                                            \
+        private:                                                                                                       \
+          const size_type idx_;                                                                                        \
+          _ITERATE_ON_ALL(_DECLARE_VIEW_ELEMENT_VALUE_MEMBER, ~, __VA_ARGS__)                                          \
       };                                                                                                               \
                                                                                                                        \
       SOA_HOST_DEVICE SOA_INLINE                                                                                       \

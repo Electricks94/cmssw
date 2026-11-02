@@ -315,33 +315,34 @@ namespace cms::soa {
     static_assert(COLUMN_TYPE != SoAColumnType::eigen);
 
   public:
-    using Restr = add_restrict<T, RESTRICT_QUALIFY>;
+    using ValueType = T;
+    using ScalarType = T;
+
+    using Restr = add_restrict<ScalarType, RESTRICT_QUALIFY>;
     using Val = typename Restr::Value;
     using Ptr = typename Restr::Pointer;
     using Ref = typename Restr::Reference;
     using PtrToConst = typename Restr::PointerToConst;
     using RefToConst = typename Restr::ReferenceToConst;
 
-    SOA_HOST_DEVICE SOA_INLINE SoAValue(size_type i, T* col) : idx_(i), col_(col) {}
+    using Params = SoAParametersImpl<COLUMN_TYPE, ValueType>;
+    using ConstParams = SoAConstParametersImpl<COLUMN_TYPE, ValueType>;
 
-    SOA_HOST_DEVICE SOA_INLINE SoAValue(size_type i, SoAParametersImpl<COLUMN_TYPE, T> params)
-        : idx_(i), col_(params.addr_) {}
+    SOA_HOST_DEVICE SOA_INLINE SoAValue(ScalarType* col) : col_(col) {}
 
-    SOA_HOST_DEVICE SOA_INLINE Ref operator()() {
+    SOA_HOST_DEVICE SOA_INLINE SoAValue(Params params) : col_(params.addr_) {}
+
+    SOA_HOST_DEVICE SOA_INLINE Ref operator()(const size_type idx) {
       // Ptr type will add the restrict qualifyer if needed
       Ptr col = col_;
-      return col[idx_];
+      return col[idx];
     }
 
-    SOA_HOST_DEVICE SOA_INLINE RefToConst operator()() const {
+    SOA_HOST_DEVICE SOA_INLINE RefToConst operator()(const size_type idx) const {
       // PtrToConst type will add the restrict qualifyer if needed
       PtrToConst col = col_;
-      return col[idx_];
+      return col[idx];
     }
-
-    SOA_HOST_DEVICE SOA_INLINE Ptr operator&() { return &col_[idx_]; }
-
-    SOA_HOST_DEVICE SOA_INLINE PtrToConst operator&() const { return &col_[idx_]; }
 
     /* This was an attempt to implement the syntax
      *
@@ -364,64 +365,46 @@ namespace cms::soa {
     }
     */
 
-    using valueType = Val;
-
-    static constexpr auto valueSize = sizeof(T);
-
   private:
-    size_type idx_;
-    T* col_;
+    ScalarType* col_;
   };
 
   // Helper template managing an Eigen-type value at index idx within a column.
-  template <class C, byte_size_type ALIGNMENT, bool RESTRICT_QUALIFY>
-  class SoAValue<SoAColumnType::eigen, C, ALIGNMENT, RESTRICT_QUALIFY> {
+  template <class T, byte_size_type ALIGNMENT, bool RESTRICT_QUALIFY>
+  class SoAValue<SoAColumnType::eigen, T, ALIGNMENT, RESTRICT_QUALIFY> {
   public:
-    using Type = C;
-    using StrideT = DynamicInnerStride;
-    using MapType = typename C::template StridedMapType<StrideT>::type;
-    using CMapType = const typename C::template StridedConstMapType<StrideT>::type;
-    using Restr = add_restrict<typename C::Scalar, RESTRICT_QUALIFY>;
+    using ValueType = T;
+    using ScalarType = typename T::Scalar;
+
+    using Restr = add_restrict<ScalarType, RESTRICT_QUALIFY>;
     using Val = typename Restr::Value;
     using Ptr = typename Restr::Pointer;
     using Ref = typename Restr::Reference;
     using PtrToConst = typename Restr::PointerToConst;
     using RefToConst = typename Restr::ReferenceToConst;
 
-    SOA_HOST_DEVICE SOA_INLINE SoAValue(size_type i, typename C::Scalar* col, byte_size_type stride)
-        : val_(col + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(stride)),
-          crCol_(col),
-          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(stride)) {}
+    using Params = SoAParametersImpl<SoAColumnType::eigen, ValueType>;
+    using ConstParams = SoAConstParametersImpl<SoAColumnType::eigen, ValueType>;
 
-    SOA_HOST_DEVICE SOA_INLINE SoAValue(size_type i, SoAParametersImpl<SoAColumnType::eigen, C> params)
-        : val_(params.addr_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(params.stride_)),
-          crCol_(params.addr_),
-          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(params.stride_)) {}
+    using StrideT = DynamicInnerStride;
+    using MapType = typename ValueType::template StridedMapType<StrideT>::type;
+    using CMapType = const typename ValueType::template StridedConstMapType<StrideT>::type;
 
-    SOA_HOST_DEVICE SOA_INLINE MapType& operator()() { return val_; }
+    SOA_HOST_DEVICE SOA_INLINE SoAValue(ScalarType* col, const byte_size_type stride) : col_(col), stride_(stride) {}
 
-    SOA_HOST_DEVICE SOA_INLINE const CMapType& operator()() const { return cVal_; }
+    SOA_HOST_DEVICE SOA_INLINE SoAValue(Params params) : col_(params.addr_), stride_(params.stride_) {}
 
-    SOA_HOST_DEVICE SOA_INLINE operator C() { return val_; }
-
-    SOA_HOST_DEVICE SOA_INLINE operator const C() const { return cVal_; }
-
-    SOA_HOST_DEVICE SOA_INLINE C* operator&() { return &val_; }
-
-    SOA_HOST_DEVICE SOA_INLINE const C* operator&() const { return &cVal_; }
-
-    template <class C2>
-    SOA_HOST_DEVICE SOA_INLINE MapType& operator=(const C2& v) {
-      return val_ = v;
+    SOA_HOST_DEVICE SOA_INLINE MapType operator()(const size_type idx) {
+      return MapType(col_ + idx, ValueType::RowsAtCompileTime, ValueType::ColsAtCompileTime, StrideT(stride_));
     }
 
-    using ValueType = typename C::Scalar;
-    static constexpr auto valueSize = sizeof(typename C::Scalar);
+    SOA_HOST_DEVICE SOA_INLINE CMapType operator()(const size_type idx) const {
+      return CMapType(col_ + idx, ValueType::RowsAtCompileTime, ValueType::ColsAtCompileTime, StrideT(stride_));
+    }
 
   private:
-    MapType val_;
-    const Ptr crCol_;
-    CMapType cVal_;
+    Ptr col_;
+    const byte_size_type stride_;
   };
 
   // Matryoshka template to avoid commas inside macros
@@ -447,7 +430,10 @@ namespace cms::soa {
     static_assert(COLUMN_TYPE != SoAColumnType::eigen);
 
   public:
-    using Restr = add_restrict<T, RESTRICT_QUALIFY>;
+    using ValueType = T;
+    using ScalarType = T;
+
+    using Restr = add_restrict<ScalarType, RESTRICT_QUALIFY>;
     using Val = typename Restr::Value;
     using Ptr = typename Restr::Pointer;
     using Ref = typename Restr::Reference;
@@ -456,21 +442,17 @@ namespace cms::soa {
     using Params = SoAParametersImpl<COLUMN_TYPE, T>;
     using ConstParams = SoAConstParametersImpl<COLUMN_TYPE, T>;
 
-    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(size_type i, const T* col) : idx_(i), col_(col) {}
+    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(const ScalarType* col) : col_(col) {}
 
-    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(size_type i, SoAParametersImpl<COLUMN_TYPE, T> params)
-        : idx_(i), col_(params.addr_) {}
+    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(Params params) : col_(params.addr_) {}
 
-    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(size_type i, SoAConstParametersImpl<COLUMN_TYPE, T> params)
-        : idx_(i), col_(params.addr_) {}
+    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(ConstParams params) : col_(params.addr_) {}
 
-    SOA_HOST_DEVICE SOA_INLINE RefToConst operator()() const {
+    SOA_HOST_DEVICE SOA_INLINE RefToConst operator()(const size_type idx) const {
       // Ptr type will add the restrict qualifyer if needed
       PtrToConst col = col_;
-      return col[idx_];
+      return col[idx];
     }
-
-    SOA_HOST_DEVICE SOA_INLINE const T* operator&() const { return &col_[idx_]; }
 
     /* This was an attempt to implement the syntax
      *
@@ -486,44 +468,43 @@ namespace cms::soa {
     SOA_HOST_DEVICE SOA_INLINE operator T&() { return col_[idx_]; }
     */
 
-    using valueType = T;
-    static constexpr auto valueSize = sizeof(T);
-
   private:
-    size_type idx_;
-    const T* col_;
+    const ScalarType* col_;
   };
 
   // Helper template managing a const Eigen-type value at index idx within a column.
-  template <class C, byte_size_type ALIGNMENT, bool RESTRICT_QUALIFY>
-  class SoAConstValue<SoAColumnType::eigen, C, ALIGNMENT, RESTRICT_QUALIFY> {
+  template <class T, byte_size_type ALIGNMENT, bool RESTRICT_QUALIFY>
+  class SoAConstValue<SoAColumnType::eigen, T, ALIGNMENT, RESTRICT_QUALIFY> {
   public:
-    using Type = C;
+    using ValueType = T;
+    using ScalarType = typename T::Scalar;
+
+    using Restr = add_restrict<ScalarType, RESTRICT_QUALIFY>;
+    using Val = typename Restr::Value;
+    using Ptr = typename Restr::Pointer;
+    using Ref = typename Restr::Reference;
+    using PtrToConst = typename Restr::PointerToConst;
+    using RefToConst = typename Restr::ReferenceToConst;
+
+    using Params = SoAParametersImpl<SoAColumnType::eigen, ValueType>;
+    using ConstParams = SoAConstParametersImpl<SoAColumnType::eigen, ValueType>;
+
     using StrideT = DynamicInnerStride;
-    using CMapType = const typename C::template StridedConstMapType<StrideT>::type;
-    using RefToConst = const CMapType&;
-    using ConstParams = SoAConstParametersImpl<SoAColumnType::eigen, C>;
+    using MapType = typename ValueType::template StridedMapType<StrideT>::type;
+    using CMapType = const typename ValueType::template StridedConstMapType<StrideT>::type;
 
-    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(size_type i, typename C::Scalar* col, byte_size_type stride)
-        : crCol_(col),
-          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(stride)) {}
+    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(const ScalarType* col, const byte_size_type stride)
+        : col_(col), stride_(stride) {}
 
-    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(size_type i, SoAConstParametersImpl<SoAColumnType::eigen, C> params)
-        : crCol_(params.addr_),
-          cVal_(crCol_ + i, C::RowsAtCompileTime, C::ColsAtCompileTime, StrideT(params.stride_)) {}
+    SOA_HOST_DEVICE SOA_INLINE SoAConstValue(ConstParams params) : col_(params.addr_), stride_(params.stride_) {}
 
-    SOA_HOST_DEVICE SOA_INLINE const CMapType& operator()() const { return cVal_; }
-
-    SOA_HOST_DEVICE SOA_INLINE operator const C() const { return cVal_; }
-
-    SOA_HOST_DEVICE SOA_INLINE const C* operator&() const { return &cVal_; }
-
-    using ValueType = typename C::Scalar;
-    static constexpr auto valueSize = sizeof(typename C::Scalar);
+    SOA_HOST_DEVICE SOA_INLINE CMapType operator()(const size_type idx) const {
+      return CMapType(col_ + idx, ValueType::RowsAtCompileTime, ValueType::ColsAtCompileTime, StrideT(stride_));
+    }
 
   private:
-    const typename C::Scalar* __restrict__ crCol_;
-    CMapType cVal_;
+    PtrToConst col_;
+    const byte_size_type stride_;
   };
 
   // Matryoshka template to avoid commas inside macros
@@ -733,9 +714,11 @@ namespace cms::soa {
       return std::span<typename T::Scalar>(params_.addr_, size_);
     }
     using NoParamReturnType = std::span<typename T::Scalar>;
-    using ParamReturnType = typename SoAValue<SoAColumnType::eigen, T, alignment, restrictQualify>::MapType;
+    using StrideT = DynamicInnerStride;
+    using ParamReturnType = typename T::template StridedMapType<StrideT>::type;
     SOA_HOST_DEVICE SOA_INLINE ParamReturnType operator()(size_type index) {
-      return SoAValue<SoAColumnType::eigen, T, alignment, restrictQualify>(index, params_)();
+      return ParamReturnType(
+          params_.addr_ + index, T::RowsAtCompileTime, T::ColsAtCompileTime, StrideT(params_.stride_));
     }
 
   private:
@@ -753,9 +736,11 @@ namespace cms::soa {
       return std::span<typename T::Scalar const>(params_.addr_, size_);
     }
     using NoParamReturnType = std::span<typename T::Scalar const>;
-    using ParamReturnType = typename SoAValue<SoAColumnType::eigen, T, alignment, restrictQualify>::CMapType;
+    using StrideT = DynamicInnerStride;
+    using ParamReturnType = const typename T::template StridedConstMapType<StrideT>::type;
     SOA_HOST_DEVICE SOA_INLINE ParamReturnType operator()(size_type index) const {
-      return SoAConstValue<SoAColumnType::eigen, T, alignment, restrictQualify>(index, params_)();
+      return ParamReturnType(
+          params_.addr_ + index, T::RowsAtCompileTime, T::ColsAtCompileTime, StrideT(params_.stride_));
     }
 
   private:

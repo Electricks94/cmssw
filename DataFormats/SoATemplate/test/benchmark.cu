@@ -70,8 +70,7 @@ constexpr size_t kBytesPerElement = 8 * sizeof(float) + 4 * sizeof(int16_t) + 2 
 constexpr size_t kMemKernelBytesPerElement = 2 * kBytesPerElement;  // read all + write all = 96 B
 
 __global__ void memoryBoundKernel(ConstView in, View out) {
-  if( (blockIdx.x * blockDim.x + threadIdx.x) < in.metadata().size())
-  {
+  if ((blockIdx.x * blockDim.x + threadIdx.x) < in.metadata().size()) {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     const float f1 = in[i].c1(), f2 = in[i].c2(), f3 = in[i].c3(), f4 = in[i].c4();
@@ -153,24 +152,25 @@ __global__ void computeBoundKernel(ConstView in, View out, int iters) {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   const int total_size = in.metadata().size();
 
-  if (i >= total_size) return;
+  if (i >= total_size)
+    return;
 
   constexpr float alpha = 0.9999f;
-  constexpr float beta  = 0.0001f;
+  constexpr float beta = 0.0001f;
 
   // Initial state loaded from direct local SoA slot
-  float x0  = in[i].c1();
-  float x1  = in[i].c2();
-  float x2  = in[i].c3();
-  float x3  = in[i].c4();
-  float x4  = in[i].c5();
-  float x5  = in[i].c6();
-  float x6  = in[i].c7();
-  float x7  = in[i].c8();
+  float x0 = in[i].c1();
+  float x1 = in[i].c2();
+  float x2 = in[i].c3();
+  float x3 = in[i].c4();
+  float x4 = in[i].c5();
+  float x5 = in[i].c6();
+  float x6 = in[i].c7();
+  float x7 = in[i].c8();
 
   // Auxiliary state variables to maximize register pressure
-  float x8  = x0 * 0.5f + 0.1f;
-  float x9  = x1 * 0.5f + 0.2f;
+  float x8 = x0 * 0.5f + 0.1f;
+  float x9 = x1 * 0.5f + 0.2f;
   float x10 = x2 * 0.5f + 0.3f;
   float x11 = x3 * 0.5f + 0.4f;
   float x12 = x4 * 0.5f + 0.5f;
@@ -199,18 +199,18 @@ __global__ void computeBoundKernel(ConstView in, View out, int iters) {
   float ind_c8 = in[in[i].c10()].c8();
 
   // 4. Non-linear update blending direct SoA, indirect dynamic SoA, and transcendental functions
-  float nx0  = fmaf(alpha, x0,  sinf(x15) * beta - (in_c1 + ind_c1) * 0.005f);
-  float nx1  = fmaf(alpha, x1,  cosf(x0)  * beta - (in_c2 + ind_c2) * 0.005f);
-  float nx2  = fmaf(alpha, x2,  tanhf(x1) * beta - (in_c3 + ind_c3) * 0.005f);
-  float nx3  = fmaf(alpha, x3,  sinf(x2)  * beta - (in_c4 + ind_c4) * 0.005f);
-  float nx4  = fmaf(alpha, x4,  cosf(x3)  * beta - (in_c5 + ind_c5) * 0.005f);
-  float nx5  = fmaf(alpha, x5,  sinf(x4)  * beta - (in_c6 + ind_c6) * 0.005f);
-  float nx6  = fmaf(alpha, x6,  cosf(x5)  * beta - (in_c7 + ind_c7) * 0.005f);
-  float nx7  = fmaf(alpha, x7,  sinf(x6)  * beta - (in_c8 + ind_c8) * 0.005f);
-  
-  float nx8  = fmaf(alpha, x8,  cosf(x7)  * beta - (in_c1 * ind_c8) * 0.005f);
-  float nx9  = fmaf(alpha, x9,  sinf(x8)  * beta - (in_c2 * ind_c7) * 0.005f);
-  float nx10 = fmaf(alpha, x10, cosf(x9)  * beta - (in_c3 * ind_c6) * 0.005f);
+  float nx0 = fmaf(alpha, x0, sinf(x15) * beta - (in_c1 + ind_c1) * 0.005f);
+  float nx1 = fmaf(alpha, x1, cosf(x0) * beta - (in_c2 + ind_c2) * 0.005f);
+  float nx2 = fmaf(alpha, x2, tanhf(x1) * beta - (in_c3 + ind_c3) * 0.005f);
+  float nx3 = fmaf(alpha, x3, sinf(x2) * beta - (in_c4 + ind_c4) * 0.005f);
+  float nx4 = fmaf(alpha, x4, cosf(x3) * beta - (in_c5 + ind_c5) * 0.005f);
+  float nx5 = fmaf(alpha, x5, sinf(x4) * beta - (in_c6 + ind_c6) * 0.005f);
+  float nx6 = fmaf(alpha, x6, cosf(x5) * beta - (in_c7 + ind_c7) * 0.005f);
+  float nx7 = fmaf(alpha, x7, sinf(x6) * beta - (in_c8 + ind_c8) * 0.005f);
+
+  float nx8 = fmaf(alpha, x8, cosf(x7) * beta - (in_c1 * ind_c8) * 0.005f);
+  float nx9 = fmaf(alpha, x9, sinf(x8) * beta - (in_c2 * ind_c7) * 0.005f);
+  float nx10 = fmaf(alpha, x10, cosf(x9) * beta - (in_c3 * ind_c6) * 0.005f);
   float nx11 = fmaf(alpha, x11, sinf(x10) * beta - (in_c4 * ind_c5) * 0.005f);
   float nx12 = fmaf(alpha, x12, cosf(x11) * beta - (in_c5 * ind_c4) * 0.005f);
   float nx13 = fmaf(alpha, x13, sinf(x12) * beta - (in_c6 * ind_c3) * 0.005f);
@@ -218,22 +218,22 @@ __global__ void computeBoundKernel(ConstView in, View out, int iters) {
   float nx15 = fmaf(alpha, x15, sinf(x14) * beta - (in_c8 * ind_c1) * 0.005f);
 
   // 5. Cross-coupling state matrix update
-  x0  = nx0  * 0.9f + nx1  * 0.1f;
-  x1  = nx1  * 0.9f + nx2  * 0.1f;
-  x2  = nx2  * 0.9f + nx3  * 0.1f;
-  x3  = nx3  * 0.9f + nx4  * 0.1f;
-  x4  = nx4  * 0.9f + nx5  * 0.1f;
-  x5  = nx5  * 0.9f + nx6  * 0.1f;
-  x6  = nx6  * 0.9f + nx7  * 0.1f;
-  x7  = nx7  * 0.9f + nx8  * 0.1f;
-  x8  = nx8  * 0.9f + nx9  * 0.1f;
-  x9  = nx9  * 0.9f + nx10 * 0.1f;
+  x0 = nx0 * 0.9f + nx1 * 0.1f;
+  x1 = nx1 * 0.9f + nx2 * 0.1f;
+  x2 = nx2 * 0.9f + nx3 * 0.1f;
+  x3 = nx3 * 0.9f + nx4 * 0.1f;
+  x4 = nx4 * 0.9f + nx5 * 0.1f;
+  x5 = nx5 * 0.9f + nx6 * 0.1f;
+  x6 = nx6 * 0.9f + nx7 * 0.1f;
+  x7 = nx7 * 0.9f + nx8 * 0.1f;
+  x8 = nx8 * 0.9f + nx9 * 0.1f;
+  x9 = nx9 * 0.9f + nx10 * 0.1f;
   x10 = nx10 * 0.9f + nx11 * 0.1f;
   x11 = nx11 * 0.9f + nx12 * 0.1f;
   x12 = nx12 * 0.9f + nx13 * 0.1f;
   x13 = nx13 * 0.9f + nx14 * 0.1f;
   x14 = nx14 * 0.9f + nx15 * 0.1f;
-  x15 = nx15 * 0.9f + nx0  * 0.1f;
+  x15 = nx15 * 0.9f + nx0 * 0.1f;
 
   // Write back outputs
   out[i].c1() = x0;
@@ -250,25 +250,26 @@ __global__ void computeBoundKernelTest(ConstView in, View out, int iters) {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   const int total_size = in.metadata().size();
 
-  if (i >= total_size) return;
+  if (i >= total_size)
+    return;
 
   constexpr float alpha = 0.9999f;
-  constexpr float beta  = 0.0001f;
+  constexpr float beta = 0.0001f;
 
   // Initial state loaded from direct local SoA slot
   const auto element_i = in[i];
-  float x0  = element_i.c1();
-  float x1  = element_i.c2();
-  float x2  = element_i.c3();
-  float x3  = element_i.c4();
-  float x4  = element_i.c5();
-  float x5  = element_i.c6();
-  float x6  = element_i.c7();
-  float x7  = element_i.c8();
+  float x0 = element_i.c1();
+  float x1 = element_i.c2();
+  float x2 = element_i.c3();
+  float x3 = element_i.c4();
+  float x4 = element_i.c5();
+  float x5 = element_i.c6();
+  float x6 = element_i.c7();
+  float x7 = element_i.c8();
 
   // Auxiliary state variables to maximize register pressure
-  float x8  = x0 * 0.5f + 0.1f;
-  float x9  = x1 * 0.5f + 0.2f;
+  float x8 = x0 * 0.5f + 0.1f;
+  float x9 = x1 * 0.5f + 0.2f;
   float x10 = x2 * 0.5f + 0.3f;
   float x11 = x3 * 0.5f + 0.4f;
   float x12 = x4 * 0.5f + 0.5f;
@@ -298,18 +299,18 @@ __global__ void computeBoundKernelTest(ConstView in, View out, int iters) {
   float ind_c8 = element_ii.c8();
 
   // 4. Non-linear update blending direct SoA, indirect dynamic SoA, and transcendental functions
-  float nx0  = fmaf(alpha, x0,  sinf(x15) * beta - (in_c1 + ind_c1) * 0.005f);
-  float nx1  = fmaf(alpha, x1,  cosf(x0)  * beta - (in_c2 + ind_c2) * 0.005f);
-  float nx2  = fmaf(alpha, x2,  tanhf(x1) * beta - (in_c3 + ind_c3) * 0.005f);
-  float nx3  = fmaf(alpha, x3,  sinf(x2)  * beta - (in_c4 + ind_c4) * 0.005f);
-  float nx4  = fmaf(alpha, x4,  cosf(x3)  * beta - (in_c5 + ind_c5) * 0.005f);
-  float nx5  = fmaf(alpha, x5,  sinf(x4)  * beta - (in_c6 + ind_c6) * 0.005f);
-  float nx6  = fmaf(alpha, x6,  cosf(x5)  * beta - (in_c7 + ind_c7) * 0.005f);
-  float nx7  = fmaf(alpha, x7,  sinf(x6)  * beta - (in_c8 + ind_c8) * 0.005f);
-  
-  float nx8  = fmaf(alpha, x8,  cosf(x7)  * beta - (in_c1 * ind_c8) * 0.005f);
-  float nx9  = fmaf(alpha, x9,  sinf(x8)  * beta - (in_c2 * ind_c7) * 0.005f);
-  float nx10 = fmaf(alpha, x10, cosf(x9)  * beta - (in_c3 * ind_c6) * 0.005f);
+  float nx0 = fmaf(alpha, x0, sinf(x15) * beta - (in_c1 + ind_c1) * 0.005f);
+  float nx1 = fmaf(alpha, x1, cosf(x0) * beta - (in_c2 + ind_c2) * 0.005f);
+  float nx2 = fmaf(alpha, x2, tanhf(x1) * beta - (in_c3 + ind_c3) * 0.005f);
+  float nx3 = fmaf(alpha, x3, sinf(x2) * beta - (in_c4 + ind_c4) * 0.005f);
+  float nx4 = fmaf(alpha, x4, cosf(x3) * beta - (in_c5 + ind_c5) * 0.005f);
+  float nx5 = fmaf(alpha, x5, sinf(x4) * beta - (in_c6 + ind_c6) * 0.005f);
+  float nx6 = fmaf(alpha, x6, cosf(x5) * beta - (in_c7 + ind_c7) * 0.005f);
+  float nx7 = fmaf(alpha, x7, sinf(x6) * beta - (in_c8 + ind_c8) * 0.005f);
+
+  float nx8 = fmaf(alpha, x8, cosf(x7) * beta - (in_c1 * ind_c8) * 0.005f);
+  float nx9 = fmaf(alpha, x9, sinf(x8) * beta - (in_c2 * ind_c7) * 0.005f);
+  float nx10 = fmaf(alpha, x10, cosf(x9) * beta - (in_c3 * ind_c6) * 0.005f);
   float nx11 = fmaf(alpha, x11, sinf(x10) * beta - (in_c4 * ind_c5) * 0.005f);
   float nx12 = fmaf(alpha, x12, cosf(x11) * beta - (in_c5 * ind_c4) * 0.005f);
   float nx13 = fmaf(alpha, x13, sinf(x12) * beta - (in_c6 * ind_c3) * 0.005f);
@@ -317,22 +318,22 @@ __global__ void computeBoundKernelTest(ConstView in, View out, int iters) {
   float nx15 = fmaf(alpha, x15, sinf(x14) * beta - (in_c8 * ind_c1) * 0.005f);
 
   // 5. Cross-coupling state matrix update
-  x0  = nx0  * 0.9f + nx1  * 0.1f;
-  x1  = nx1  * 0.9f + nx2  * 0.1f;
-  x2  = nx2  * 0.9f + nx3  * 0.1f;
-  x3  = nx3  * 0.9f + nx4  * 0.1f;
-  x4  = nx4  * 0.9f + nx5  * 0.1f;
-  x5  = nx5  * 0.9f + nx6  * 0.1f;
-  x6  = nx6  * 0.9f + nx7  * 0.1f;
-  x7  = nx7  * 0.9f + nx8  * 0.1f;
-  x8  = nx8  * 0.9f + nx9  * 0.1f;
-  x9  = nx9  * 0.9f + nx10 * 0.1f;
+  x0 = nx0 * 0.9f + nx1 * 0.1f;
+  x1 = nx1 * 0.9f + nx2 * 0.1f;
+  x2 = nx2 * 0.9f + nx3 * 0.1f;
+  x3 = nx3 * 0.9f + nx4 * 0.1f;
+  x4 = nx4 * 0.9f + nx5 * 0.1f;
+  x5 = nx5 * 0.9f + nx6 * 0.1f;
+  x6 = nx6 * 0.9f + nx7 * 0.1f;
+  x7 = nx7 * 0.9f + nx8 * 0.1f;
+  x8 = nx8 * 0.9f + nx9 * 0.1f;
+  x9 = nx9 * 0.9f + nx10 * 0.1f;
   x10 = nx10 * 0.9f + nx11 * 0.1f;
   x11 = nx11 * 0.9f + nx12 * 0.1f;
   x12 = nx12 * 0.9f + nx13 * 0.1f;
   x13 = nx13 * 0.9f + nx14 * 0.1f;
   x14 = nx14 * 0.9f + nx15 * 0.1f;
-  x15 = nx15 * 0.9f + nx0  * 0.1f;
+  x15 = nx15 * 0.9f + nx0 * 0.1f;
 
   // Write back outputs
   auto out_i = out[i];
@@ -362,7 +363,7 @@ float timeKernel(Launch&& launch, int warmup, int iterations) {
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());
 
-  if (iterations == 0){
+  if (iterations == 0) {
     return 0.0f;
   }
 
@@ -429,7 +430,7 @@ int main(int argc, char** argv) {
   std::cout << "Size of View: " << sizeof(h_view) << std::endl;
   std::cout << "Size of element: " << sizeof(element) << std::endl;
 
-    // fill up
+  // fill up
   for (cms::soa::size_type i = 0; i < h_view.metadata().size(); i++) {
     h_view[i].c1() = static_cast<float>(i) * 1.0f;
     h_view[i].c2() = static_cast<float>(i) * 2.0f;
@@ -441,7 +442,7 @@ int main(int argc, char** argv) {
     h_view[i].c8() = static_cast<float>(i) * 8.0f;
 
     h_view[i].c9() = static_cast<int16_t>(i) * 9;
-    constexpr int32_t STRIDE = 1024; // Change to your desired fixed stride
+    constexpr int32_t STRIDE = 1024;  // Change to your desired fixed stride
     h_view[i].c10() = static_cast<int32_t>((i + numElements / 2 + (i % STRIDE)) % numElements);
     h_view[i].c11() = static_cast<int16_t>(i) * 11;
     h_view[i].c12() = static_cast<int16_t>(i) * 12;
@@ -449,8 +450,8 @@ int main(int argc, char** argv) {
     h_view[i].c14() = static_cast<int32_t>(i) * 14;
   }
 
-  std::byte *d_in = nullptr; 
-  std::byte *d_out = nullptr;
+  std::byte* d_in = nullptr;
+  std::byte* d_out = nullptr;
   CUDA_CHECK(cudaMalloc(&d_in, bufferSize));
   CUDA_CHECK(cudaMalloc(&d_out, bufferSize));
   CUDA_CHECK(cudaMemset(d_out, 0, bufferSize));
@@ -469,8 +470,8 @@ int main(int argc, char** argv) {
   if (mode == 1) {
     // --- 1. Memory-bound kernel: all 14 columns read, all 14 columns written ---
     std::cout << "\n Benchmark Memory-bound kernel \n";
-    const float ms = timeKernel([&] { memoryBoundKernel<<<numBlocks, blockSize>>>(inCView, outView); },
-                                warmupIterations, timedIterations);
+    const float ms = timeKernel(
+        [&] { memoryBoundKernel<<<numBlocks, blockSize>>>(inCView, outView); }, warmupIterations, timedIterations);
     const double bytes = static_cast<double>(numElements) * kMemKernelBytesPerElement;
     std::cout << "  Average Time   : " << ms << " ms\n";
     std::cout << "  Bytes moved    : " << bytes / 1e6 << " MB per launch (" << kMemKernelBytesPerElement
@@ -481,23 +482,20 @@ int main(int argc, char** argv) {
   if (mode == 2) {
     // --- 2. Compute-bound kernel: tunable FMA workload ---
     std::cout << "\n Benchmark Compute-bound kernel \n";
-    const float ms = timeKernel(
-          [&] { computeBoundKernel<<<numBlocks, blockSize>>>(inCView, outView, iterSweep); },
-          warmupIterations,
-          timedIterations);
-      std::cout << "  Average Time   : " << ms << " ms\n";
+    const float ms = timeKernel([&] { computeBoundKernel<<<numBlocks, blockSize>>>(inCView, outView, iterSweep); },
+                                warmupIterations,
+                                timedIterations);
+    std::cout << "  Average Time   : " << ms << " ms\n";
   }
 
   if (mode == 3) {
     // --- 2. Compute-bound kernel: tunable FMA workload ---
     std::cout << "\n Benchmark Compute-bound Test kernel \n";
-    const float ms = timeKernel(
-          [&] { computeBoundKernelTest<<<numBlocks, blockSize>>>(inCView, outView, iterSweep); },
-          warmupIterations,
-          timedIterations);
-      std::cout << "  Average Time   : " << ms << " ms\n";
+    const float ms = timeKernel([&] { computeBoundKernelTest<<<numBlocks, blockSize>>>(inCView, outView, iterSweep); },
+                                warmupIterations,
+                                timedIterations);
+    std::cout << "  Average Time   : " << ms << " ms\n";
   }
-
 
   CUDA_CHECK(cudaGetLastError());
   CUDA_CHECK(cudaDeviceSynchronize());

@@ -107,7 +107,7 @@ TEST_CASE("Test MemoryCopyTraits", "[MemoryCopyTraits]") {
         refHostCollection.view()[i].id() = i;
         refHostCollection.view()[i].flags() = std::array<short, 4>{
             {static_cast<short>(i), static_cast<short>(i + 1), static_cast<short>(i + 2), static_cast<short>(i + 3)}};
-        refHostCollection.view()[i].m = Eigen::Matrix<double, 3, 6>::Identity() * i;
+        refHostCollection.view()[i].m() = Eigen::Matrix<double, 3, 6>::Identity() * i;
       }
 
       // Function to validate a PortableCollection whose contents should be
@@ -273,14 +273,14 @@ TEST_CASE("Test MemoryCopyTraits", "[MemoryCopyTraits]") {
         refHost.view().first()[i].z() = 0.0;
         refHost.view().first()[i].id() = i;
         refHost.view().first()[i].flags() = std::array<short, 4>{{0, 0, 0, 0}};
-        refHost.view().first()[i].m = Eigen::Matrix<double, 3, 6>::Zero();
+        refHost.view().first()[i].m() = Eigen::Matrix<double, 3, 6>::Zero();
       }
       for (int i = 0; i < size2; i++) {
         refHost.view().second()[i].x2() = i * 20.0;
         refHost.view().second()[i].y2() = 0.0;
         refHost.view().second()[i].z2() = 0.0;
         refHost.view().second()[i].id2() = i + 100;
-        refHost.view().second()[i].m2 = Eigen::Matrix<double, 3, 6>::Zero();
+        refHost.view().second()[i].m2() = Eigen::Matrix<double, 3, 6>::Zero();
       }
 
       // Create DeviceCollection2, fill it, and wrap in DeviceProduct
