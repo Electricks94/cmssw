@@ -1259,6 +1259,74 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
               BOOST_PP_EMPTY(),                                                             \
               BOOST_PP_EXPAND(_DECLARE_VIEW_SOA_ACCESSOR_IMPL TYPE_NAME))
 
+/**
+ * Declaration of the members accessors of the const element line view subclass
+ */
+// clang-format off
+#define _DECLARE_LINVIEW_ELEMENT_ACCESSOR_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS, I)                                    \
+  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
+    /* Scalar */                                                                                                       \
+    ,                                                                                                                  \
+    /* Column */                                                                                                       \
+    SOA_HOST_DEVICE SOA_INLINE                                                                                         \
+      const CPP_TYPE& __restrict__ NAME() const { const CPP_TYPE* __restrict__ colPtr = reinterpret_cast<const CPP_TYPE*>(getColumnPtr<I>());\
+        return colPtr[idx_];}                                                   \
+    ,                                                                                                                  \
+    /* Eigen Column */                                                                                                 \
+    )
+// clang-format on
+
+#define _DECLARE_LINVIEW_ELEMENT_ACCESSOR(R, DATA, I, TYPE_NAME)                               \
+  BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
+              BOOST_PP_EMPTY(),                                                             \
+              BOOST_PP_EXPAND(_DECLARE_LINVIEW_ELEMENT_ACCESSOR_IMPL BOOST_PP_TUPLE_PUSH_BACK(TYPE_NAME, I)))
+
+/**
+ * Computation of the column or scalar pointer location in the memory layout (at SoA construction time)
+ */
+// clang-format off
+#define _CALC_COLUM_PTR_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS, I)                                                      \
+  _SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
+      /* Scalar */                                                                                                     \
+      if constexpr (Column > I){curMem += align128(sizeof(CPP_TYPE)); }                 \
+      ,                                                                                                                \
+      /* Column */                                                                                                     \
+      if constexpr (Column > I){curMem += align128(elements_ * sizeof(CPP_TYPE));}     \
+      ,                                                                                                                \
+      /* Eigen column */                                                                                               \
+      if constexpr (Column > I){curMem += align128(elements_ * sizeof(CPP_TYPE::Scalar))                     \
+        * CPP_TYPE::RowsAtCompileTime * CPP_TYPE::ColsAtCompileTime;}                                                  \
+  )
+  // clang-format on
+
+#define _CALC_COLUM_PTR(R, DATA, I, TYPE_NAME)                                    \
+  BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
+              BOOST_PP_EMPTY(),                                                             \
+              BOOST_PP_EXPAND(_CALC_COLUM_PTR_IMPL BOOST_PP_TUPLE_PUSH_BACK(TYPE_NAME, I)))
+
+/**
+ * Direct access to column pointer (const) and indexed access.
+ */
+// clang-format off
+#define _DECLARE_LINVIEW_SOA_CONST_ACCESSOR_IMPL(VALUE_TYPE, CPP_TYPE, NAME, ARGS, I)                                \
+_SWITCH_ON_TYPE(VALUE_TYPE,                                                                                          \
+  /* Scalar */                                                                                                       \
+  SOA_HOST_DEVICE SOA_INLINE                                                                                         \
+  const CPP_TYPE& __restrict__ NAME() const { const CPP_TYPE* __restrict__ colPtr = reinterpret_cast<const CPP_TYPE*>(getColumnPtr<I>());\
+    return colPtr[0];}                                                   \
+  ,                                                                                                                  \
+  /* Column */                                                                                                       \
+  ,                                                                                                                  \
+  /* Eigen column */                                                                                                 \
+)
+// clang-format on
+
+#define _DECLARE_LINVIEW_SOA_CONST_ACCESSOR(R, DATA, I, TYPE_NAME)                          \
+  BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_TUPLE_ELEM(0, TYPE_NAME), _VALUE_LAST_COLUMN_TYPE), \
+              BOOST_PP_EMPTY(),                                                             \
+              BOOST_PP_EXPAND(_DECLARE_LINVIEW_SOA_CONST_ACCESSOR_IMPL BOOST_PP_TUPLE_PUSH_BACK(TYPE_NAME, I)))
+              
+
 /*
  * A macro defining a SoA layout (collection of scalars and columns of equal lengths)
  */
@@ -1530,6 +1598,122 @@ _SWITCH_ON_TYPE(VALUE_TYPE,                                                     
       RANGE_CHECKING>;                                                                                                 \
                                                                                                                        \
     using ConstView = ConstViewTemplate<cms::soa::RestrictQualify::Default, cms::soa::RangeChecking::Default>;         \
+                                                                                                                       \
+    template <bool RESTRICT_QUALIFY,                                                                                   \
+              cms::soa::RangeChecking::Mode RANGE_CHECKING>                                                            \
+    struct LinearConstViewTemplate {                                                                                   \
+      /* these could be moved to an external type trait to free up the symbol names */                                 \
+      using self_type = LinearConstViewTemplate;                                                                       \
+      using BOOST_PP_CAT(CLASS, _parametrized) = CLASS<128, false>;                                                    \
+      using size_type = cms::soa::size_type;                                                                           \
+      using byte_size_type = cms::soa::byte_size_type;                                                                 \
+                                                                                                                       \
+      template <bool, cms::soa::RangeChecking::Mode>                                                                   \
+      friend struct LinearConstViewTemplate;                                                                           \
+                                                                                                                       \
+      constexpr static bool restrictQualify = RESTRICT_QUALIFY;                                                        \
+      constexpr static cms::soa::RangeChecking::Mode rangeChecking = RANGE_CHECKING;                                   \
+                                                                                                                       \
+      /**                                                                                                              \
+       * Helper/friend class allowing SoA introspection.                                                               \
+       */                                                                                                              \
+      struct Metadata {                                                                                                \
+        friend LinearConstViewTemplate;                                                                                \
+        SOA_HOST_DEVICE SOA_INLINE size_type size() const { return parent_.elements_; }                                \
+        /* Alias layout to name-derived identifyer to allow simpler definitions */                                     \
+        using TypeOf_Layout = BOOST_PP_CAT(CLASS, _parametrized);                                                      \
+                                                                                                                       \
+        /* Forbid copying to avoid const correctness evasion */                                                        \
+        Metadata& operator=(const Metadata&) = delete;                                                                 \
+        Metadata(const Metadata&) = delete;                                                                            \
+                                                                                                                       \
+      private:                                                                                                         \
+        SOA_HOST_DEVICE SOA_INLINE Metadata(const LinearConstViewTemplate& _soa_impl_parent)                           \
+        : parent_(_soa_impl_parent) {}                                                                                 \
+        const LinearConstViewTemplate& parent_;                                                                        \
+      };                                                                                                               \
+                                                                                                                       \
+      friend Metadata;                                                                                                 \
+      SOA_HOST_DEVICE SOA_INLINE const Metadata metadata() const { return Metadata(*this); }                           \
+                                                                                                                       \
+      /* Trivial constuctor */                                                                                         \
+      LinearConstViewTemplate() = default;                                                                             \
+                                                                                                                       \
+      /* Constructor relying the layout */                                                                             \
+      SOA_HOST_ONLY LinearConstViewTemplate(Metadata::TypeOf_Layout& layout)                                     \
+      : elements_(layout.metadata().size()), mem_(layout.metadata().data()) {}                                         \
+                                                                                                                       \
+      /* Copiable */                                                                                                   \
+      LinearConstViewTemplate(LinearConstViewTemplate const&) = default;                                               \
+      LinearConstViewTemplate& operator=(LinearConstViewTemplate const&) = default;                                    \
+                                                                                                                       \
+      /* Copy constructor for other parameters */                                                                      \
+      template <bool OTHER_RESTRICT_QUALIFY,                                                                           \
+                cms::soa::RangeChecking::Mode OTHER_RANGE_CHECKING>                                                    \
+      LinearConstViewTemplate(LinearConstViewTemplate<OTHER_RESTRICT_QUALIFY, OTHER_RANGE_CHECKING> const& other)      \
+        : LinearConstViewTemplate{other.elements_, other.mem_} {}                                                      \
+                                                                                                                       \
+      SOA_HOST_DEVICE                                                                                                  \
+      LinearConstViewTemplate(size_type elems, const std::byte* mem) : elements_{elems}, mem_{mem} {}                        \
+                                                                                                                       \
+                                                                                                                       \
+      /* Movable */                                                                                                    \
+      LinearConstViewTemplate(LinearConstViewTemplate &&) = default;                                                   \
+      LinearConstViewTemplate& operator=(LinearConstViewTemplate &&) = default;                                        \
+                                                                                                                       \
+      /* Trivial destuctor */                                                                                          \
+      ~LinearConstViewTemplate() = default;                                                                            \
+                                                                                                                       \
+      /* AoS-like accessor (const) */                                                                                  \
+      struct const_element {                                                                                           \
+        SOA_HOST_DEVICE SOA_INLINE                                                                                     \
+        const_element(const size_type _soa_impl_index, const std::byte* _mem, const size_type _elements): idx_(_soa_impl_index), mem_(_mem), elements_(_elements) {}    \
+        _ITERATE_ON_ALL_I(_DECLARE_LINVIEW_ELEMENT_ACCESSOR, ~, __VA_ARGS__)                                           \
+                                                                                                                       \
+        ENUM_IF_VALID(_ITERATE_ON_ALL(GENERATE_CONST_METHODS, ~, __VA_ARGS__))                                         \
+                                                                                                                       \
+        private:                                                                                                       \
+        SOA_HOST_DEVICE SOA_INLINE byte_size_type align128(const byte_size_type size) const                                  \
+                                   {return (size + 127) & ~byte_size_type{127}; }                                      \
+        template <int Column>                                                                                          \
+        SOA_HOST_DEVICE SOA_INLINE const std::byte* getColumnPtr() const {                                                                                    \
+            const std::byte* curMem = mem_;                                                                                  \
+            _ITERATE_ON_ALL_I(_CALC_COLUM_PTR, ~, __VA_ARGS__)                                                         \
+            return curMem;                                                                                             \
+        }                                                                                                              \
+        const size_type idx_;                                                                                          \
+        const std::byte* mem_;                                                                                               \
+        const size_type elements_ = 0;                                                                                 \
+      };                                                                                                               \
+                                                                                                                       \
+        SOA_HOST_DEVICE SOA_INLINE                                                                                     \
+        const_element operator[](cms::soa::detail::IndexWithSourceLocation<rangeChecking> _soa_impl_index) const {     \
+          if constexpr (rangeChecking != cms::soa::RangeChecking::disabled) {                                          \
+            if (_soa_impl_index.value_ >= elements_ or _soa_impl_index.value_ < 0)                                     \
+              SOA_THROW_OUT_OF_RANGE("Out of range index in LinearConstViewTemplate " #CLASS "::operator[]",           \
+                _soa_impl_index, elements_)                                                                            \
+          }                                                                                                            \
+          return const_element{_soa_impl_index.value_, mem_, elements_};                                                          \
+        }                                                                                                              \
+                                                                                                                       \
+        /* const accessors */                                                                                          \
+        _ITERATE_ON_ALL_I(_DECLARE_LINVIEW_SOA_CONST_ACCESSOR, ~, __VA_ARGS__)                                         \
+        ENUM_IF_VALID(_ITERATE_ON_ALL(GENERATE_CONST_VIEW_METHODS, ~, __VA_ARGS__))                                    \
+                                                                                                                       \
+                                                                                                                       \
+        private:                                                                                                       \
+          SOA_HOST_DEVICE SOA_INLINE byte_size_type align128(const byte_size_type size) const                                \
+                                     {return (size + 127) & ~byte_size_type{127}; }                                    \
+          template <int Column>                                                                                        \
+          SOA_HOST_DEVICE SOA_INLINE const std::byte* getColumnPtr() const {                                                                                  \
+            const std::byte* curMem = mem_;                                                                                  \
+            _ITERATE_ON_ALL_I(_CALC_COLUM_PTR, ~, __VA_ARGS__)                                                         \
+            return curMem;                                                                                             \
+          }                                                                                                            \
+          size_type elements_ = 0;                                                                                     \
+          const std::byte* mem_;                                                                                             \
+      };                                                                                                               \
+    using LinConstView = LinearConstViewTemplate<cms::soa::RestrictQualify::Default, cms::soa::RangeChecking::Default>;\
                                                                                                                        \
     template <CMS_SOA_BYTE_SIZE_TYPE VIEW_ALIGNMENT,                                                                   \
               bool VIEW_ALIGNMENT_ENFORCEMENT,                                                                         \

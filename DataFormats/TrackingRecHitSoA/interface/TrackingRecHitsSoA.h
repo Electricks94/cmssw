@@ -50,10 +50,12 @@ namespace reco {
   using TrackingRecHitSoA = TrackingHitsLayout<>;
   using TrackingRecHitView = TrackingRecHitSoA::View;
   using TrackingRecHitConstView = TrackingRecHitSoA::ConstView;
+  using TrackingRecHitLinConstView = TrackingRecHitSoA::LinConstView;
 
   using HitModuleSoA = HitModulesLayout<>;
   using HitModuleSoAView = HitModuleSoA::View;
   using HitModuleSoAConstView = HitModuleSoA::ConstView;
+  using HitModuleSoALinConstView = HitModuleSoA::LinConstView;
 
   using TrackingBlocksSoA = TrackingBlocksLayout<>;
   using TrackingBlocksSoAView = TrackingBlocksSoA::View;

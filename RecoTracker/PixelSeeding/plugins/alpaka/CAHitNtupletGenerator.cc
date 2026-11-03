@@ -435,8 +435,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     auto tracks = trackCollection.view().tracks();
 
-    HitsMultiView trackingHits(
-        hitsRefProdVector, [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().trackingHits(); });
+   HitsMultiView trackingHits;
+
+   for (std::size_t i = 0; i < hitsRefProdVector.size(); ++i) {
+      TrackingRecHitLinConstView view(hitsRefProdVector[i]->view().trackingHits().metadata().size(), hitsRefProdVector[i]->buffer().data());
+      trackingHits.addView(view, view.metadata().size());
+    }
 
     std::vector<int> hitModulesSizes;
     for (const auto& hit : hitsRefProdVector) {
@@ -448,10 +452,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       ++hitModulesSizes.back();
     }
 
-    ModulesMultiView hitModules(
-        hitsRefProdVector,
-        [](edm::RefProd<HitsOnDevice> hits) -> auto { return hits->const_view().hitModules(); },
-        hitModulesSizes);
+    ModulesMultiView hitModules;
+
+    for (std::size_t i = 0; i < hitsRefProdVector.size(); ++i) {
+      HitModuleSoALinConstView view(hitsRefProdVector[i]->view().hitModules().metadata().size(), hitsRefProdVector[i]->buffer().data());
+      hitModules.addView(view, hitModulesSizes[i]);
+    }
 
     auto layers = geometry_d.view().layers();
     auto graph = geometry_d.view().graph();

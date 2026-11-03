@@ -50,8 +50,8 @@ namespace caStructures {
 
   // Hits data formats
   using HitsView = ::reco::TrackingRecHitView;
-  using HitModulesConstView = ::reco::HitModuleSoAConstView;
-  using HitsConstView = ::reco::TrackingRecHitConstView;
+  using HitModulesConstView = ::reco::HitModuleSoALinConstView;
+  using HitsConstView = ::reco::TrackingRecHitLinConstView;
 
   // MultiViews for hits and modules
   using ModulesMultiView = SoAConstMultiView<HitModulesConstView, 2>;

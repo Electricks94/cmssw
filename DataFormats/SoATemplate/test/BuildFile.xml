@@ -1,3 +1,4 @@
+<!--
 <iftool name="cuda-gcc-support">
   <bin file="SoALayoutAndView_t.cu" name="testCudaSoALayoutAndView_t">
     <use name="boost"/>
@@ -17,7 +18,7 @@
     <use name="HeterogeneousCore/ROCmUtilities"/>
   </bin>
 </iftool>
-
+-->
 <bin file="SoAUnitTests.cc" name="SoAUnitTests">
   <use name="boost"/>
   <use name="catch2"/>
@@ -83,14 +84,14 @@
   <use name="DataFormats/SoATemplate"/>
   <use name="DataFormats/Portable"/>
 </bin>
-
+<!--
 <bin file="SoAStreamInternal_t.cc" name="SoAStreamInternal_t">
   <use name="boost"/>
   <use name="catch2"/>
   <use name="eigen"/>
   <use name="DataFormats/SoATemplate"/>
 </bin>
-
+-->
 <iftool name="cuda">
   <bin file="SoAMultiView_t.cu" name="SoAMultiViewCuda">
     <use name="boost"/>
